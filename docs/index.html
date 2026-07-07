@@ -24,7 +24,10 @@
 
 <!-- APIキー設定パネル -->
 <section id="settingsPanel" class="panel panel--settings hidden">
-  <h2 class="panel__title">APIキー設定</h2>
+  <div class="panel__head">
+    <h2 class="panel__title">APIキー設定</h2>
+    <button type="button" id="btnCloseSettings" class="btn-close" aria-label="閉じる">×</button>
+  </div>
   <p class="note">
     楽天ウェブサービスの <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">アプリID発行ページ</a>
     で無料取得したキーを入力してください。キーはこの端末のブラウザ内（localStorage）にのみ保存されます。

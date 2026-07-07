@@ -84,7 +84,24 @@ a { color: var(--primary); }
   margin-bottom: 14px;
 }
 .panel--settings { max-width: 616px; margin: 12px auto 0; }
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
 .panel__title { font-size: 1rem; margin-bottom: 8px; }
+.panel__head .panel__title { margin-bottom: 0; }
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ink-sub);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.btn-close:active { color: var(--ink); }
 .panel__actions { margin-top: 10px; }
 
 .hidden { display: none !important; }

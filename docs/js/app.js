@@ -70,6 +70,7 @@
 
     // イベント
     $('btnSettings').addEventListener('click', () => $('settingsPanel').classList.toggle('hidden'));
+    $('btnCloseSettings').addEventListener('click', () => $('settingsPanel').classList.add('hidden'));
     $('btnSaveSettings').addEventListener('click', onSaveSettings);
     $('selMiddle').addEventListener('change', () => populateSmall());
     $('selSmall').addEventListener('change', () => populateDetail());
