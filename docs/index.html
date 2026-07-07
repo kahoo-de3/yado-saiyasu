@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>宿最安ファインダー | 国内宿泊の最安値検索</title>
 <meta name="description" content="宿泊日・エリア・予算・こだわり条件で国内の宿の最安値を横断検索。楽天トラベル対応。">
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 
@@ -160,6 +160,12 @@
       <span id="resultCount"></span>
       <span class="result-note">安い順</span>
     </div>
+    <p class="cross-note">
+      表示価格・「プランを見る」は楽天トラベルの料金です。各カード下部の
+      <span class="cross-note__jalan">じゃらん</span>・<span class="cross-note__yahoo">Yahoo!トラベル</span>
+      ボタンから、同じ宿を各サイトで開いて料金を比較できます（両サイトは料金APIを公開していないため、
+      価格の取り込みは行わず送客リンクのみ）。
+    </p>
     <div id="resultList"></div>
     <button id="btnMore" class="btn btn--ghost btn--block hidden">もっと見る</button>
   </section>
@@ -173,7 +179,7 @@
   </footer>
 </main>
 
-<script src="js/providers/rakuten.js?v=2"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/providers/rakuten.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

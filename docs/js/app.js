@@ -372,6 +372,41 @@
     allItems.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
   }
 
+  /* ---------------- 他サイト横断リンク ----------------
+   * じゃらん・ヤフーは宿泊料金APIが利用できない（じゃらんWebサービスは2020年に
+   * 新規登録終了、ヤフートラベルは公開APIなし）。料金は各サイトで確認する前提で、
+   * その宿の検索へ1タップで飛べる送客リンクだけを提供する。価格は表示しない（捏造しない）。
+   *   - じゃらん: キーワード検索URL（宿名で該当宿にランディング。動作確認済）
+   *   - ヤフー: 共有可能な検索URLが無い（p等をサーバが除去）ため、Yahoo!検索の
+   *             site:travel.yahoo.co.jp 指定で該当宿のYahoo!トラベルページを上位表示させる
+   */
+  const CROSS_SITES = [
+    {
+      id: 'jalan',
+      label: 'じゃらん',
+      cls: 'btn-cross--jalan',
+      build: (item) =>
+        'https://www.jalan.net/uw/uwp2011/uww2011init.do?keyword=' +
+        encodeURIComponent(item.name),
+    },
+    {
+      id: 'yahoo',
+      label: 'Yahoo!トラベル',
+      cls: 'btn-cross--yahoo',
+      build: (item) =>
+        'https://search.yahoo.co.jp/search?p=' +
+        encodeURIComponent(`${item.name} site:travel.yahoo.co.jp`),
+    },
+  ];
+
+  function crossLinksHtml(item) {
+    const links = CROSS_SITES.map((s) =>
+      `<a class="btn-cross ${s.cls}" href="${esc(s.build(item))}" target="_blank" rel="noopener nofollow">`
+      + `${esc(s.label)}<span class="btn-cross__go">で料金を見る ↗</span></a>`
+    ).join('');
+    return `<div class="hotel-card__cross"><span class="cross-label">他サイト：</span>${links}</div>`;
+  }
+
   /* ---------------- 描画 ---------------- */
   function renderResults() {
     const total = Object.values(pagingState).reduce((s, p) => s + (p.total || 0), 0);
@@ -425,6 +460,7 @@
           </div>
           <a class="btn-book" href="${esc(item.url)}" target="_blank" rel="noopener">プランを見る</a>
         </div>
+        ${crossLinksHtml(item)}
       </article>`;
   }
 
