@@ -264,7 +264,11 @@
   const ROTEN_RE = /露天風呂付|露天付|客室露天|部屋露天|お部屋.{0,4}露天|専用露天|露天風呂の?ある(客室|部屋|離れ)/;
   function applyLocalFilters(items) {
     if (!lastParams || !lastParams.localFilters.includes('rotenburo')) return items;
-    return items.filter((i) => ROTEN_RE.test(`${i.planName}${i.roomName}`));
+    return items.filter((i) => {
+      // 「貸切露天風呂付き」は客室露天ではないため、貸切系の語を除いてから判定
+      const text = `${i.planName}${i.roomName}`.replace(/貸切(半)?露天/g, '');
+      return ROTEN_RE.test(text);
+    });
   }
 
   async function onSearch(ev) {
