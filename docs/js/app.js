@@ -375,34 +375,39 @@
   /* ---------------- 他サイト横断リンク ----------------
    * じゃらん・ヤフーは宿泊料金APIが利用できない（じゃらんWebサービスは2020年に
    * 新規登録終了、ヤフートラベルは公開APIなし）。料金は各サイトで確認する前提で、
-   * その宿の検索へ1タップで飛べる送客リンクだけを提供する。価格は表示しない（捏造しない）。
-   *   - じゃらん: キーワード検索URL（宿名で該当宿にランディング。動作確認済）
-   *   - ヤフー: 共有可能な検索URLが無い（p等をサーバが除去）ため、Yahoo!検索の
-   *             site:travel.yahoo.co.jp 指定で該当宿のYahoo!トラベルページを上位表示させる
+   * その宿へ1タップで飛べる送客リンクだけを提供する。価格は表示しない（捏造しない）。
+   *
+   * どちらもサイト直の検索URLは使えない:
+   *   - じゃらん(uww2011init)はEUC-JP専用で、ブラウザのencodeURIComponent(UTF-8)だと
+   *     文字化けして0件になる。
+   *   - ヤフーは共有可能な検索URLが無い（p等のパラメータをサーバが301で除去）。
+   * そこで両サイトとも Yahoo!検索の site:ドメイン 指定を使う。UTF-8で正しく動作し、
+   * 検索結果の先頭に各サイトの該当ホテルページ（jalan.net/yad… , travel.yahoo.co.jp/…）
+   * が出ることを確認済み。
    */
+  const yahooSiteSearch = (name, domain) =>
+    'https://search.yahoo.co.jp/search?p=' +
+    encodeURIComponent(`${name} site:${domain}`);
+
   const CROSS_SITES = [
     {
       id: 'jalan',
       label: 'じゃらん',
       cls: 'btn-cross--jalan',
-      build: (item) =>
-        'https://www.jalan.net/uw/uwp2011/uww2011init.do?keyword=' +
-        encodeURIComponent(item.name),
+      build: (item) => yahooSiteSearch(item.name, 'jalan.net'),
     },
     {
       id: 'yahoo',
       label: 'Yahoo!トラベル',
       cls: 'btn-cross--yahoo',
-      build: (item) =>
-        'https://search.yahoo.co.jp/search?p=' +
-        encodeURIComponent(`${item.name} site:travel.yahoo.co.jp`),
+      build: (item) => yahooSiteSearch(item.name, 'travel.yahoo.co.jp'),
     },
   ];
 
   function crossLinksHtml(item) {
     const links = CROSS_SITES.map((s) =>
       `<a class="btn-cross ${s.cls}" href="${esc(s.build(item))}" target="_blank" rel="noopener nofollow">`
-      + `${esc(s.label)}<span class="btn-cross__go">で料金を見る ↗</span></a>`
+      + `${esc(s.label)}<span class="btn-cross__go">で探す ↗</span></a>`
     ).join('');
     return `<div class="hotel-card__cross"><span class="cross-label">他サイト：</span>${links}</div>`;
   }
