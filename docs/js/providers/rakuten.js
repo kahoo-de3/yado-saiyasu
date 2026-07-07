@@ -146,8 +146,32 @@
     return out;
   }
 
+  // 「プランを見る」の遷移先を、施設情報ページではなくプラン一覧ページにし、
+  // 検索した宿泊日・人数・部屋数を引き継ぐ。楽天のリダイレクタ(planListUrl)は
+  // 追記したクエリを最終URL(hotel.travel.rakuten.co.jp/hotelinfo/plan/)まで
+  // 引き継ぐことを実測で確認済み。アフィリエイトIDもplanListUrlに含まれるため維持される。
+  function buildPlanUrl(basic, params) {
+    const base = basic.planListUrl || basic.hotelInformationUrl;
+    if (!base || !params || !params.checkin || !params.checkout) {
+      return base || basic.hotelInformationUrl || '#';
+    }
+    const ci = params.checkin.split('-'); // YYYY-MM-DD
+    const co = params.checkout.split('-');
+    if (ci.length !== 3 || co.length !== 3) return base;
+    const stay = {
+      f_nen1: ci[0], f_tuki1: String(Number(ci[1])), f_hi1: String(Number(ci[2])),
+      f_nen2: co[0], f_tuki2: String(Number(co[1])), f_hi2: String(Number(co[2])),
+      f_otona_su: params.adults || 2,
+      f_heya_su: params.rooms || 1,
+    };
+    const qs = Object.entries(stay)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&');
+    return base + (base.includes('?') ? '&' : '?') + qs;
+  }
+
   /* ---- VacantHotelSearch レスポンス → 正規化アイテム ---- */
-  function parseHotels(data, settings) {
+  function parseHotels(data, params) {
     const items = [];
     for (const wrap of data.hotels || []) {
       const parts = wrap.hotel || [];
@@ -187,7 +211,7 @@
         provider: 'rakuten',
         id: String(basic.hotelNo),
         name: basic.hotelName || '',
-        url: basic.hotelInformationUrl || basic.planListUrl || '#',
+        url: buildPlanUrl(basic, params),
         thumb: basic.hotelThumbnailUrl || basic.hotelImageUrl || '',
         address: `${basic.address1 || ''}${basic.address2 || ''}`,
         access: basic.access || '',
@@ -249,7 +273,7 @@
       }
       const paging = data.pagingInfo || {};
       return {
-        items: parseHotels(data, settings),
+        items: parseHotels(data, params),
         page: Number(paging.page) || 1,
         pageCount: Number(paging.pageCount) || 1,
         total: Number(paging.recordCount) || 0,
