@@ -23,6 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
+  const APP_VER = 10; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -48,6 +49,7 @@
 
   /* ---------------- 初期化 ---------------- */
   function init() {
+    $('appVer').textContent = `v${APP_VER}`;
     // 日付デフォルト: 1週間後に1泊
     const today = new Date();
     const ci = new Date(today); ci.setDate(ci.getDate() + 7);
