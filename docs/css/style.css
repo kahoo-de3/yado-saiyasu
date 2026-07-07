@@ -141,6 +141,23 @@ select:disabled { background: #f0f2f6; color: #9aa7b5; }
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+.kids {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: #fafbfd;
+}
+.kids summary {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--ink-sub);
+  cursor: pointer;
+  user-select: none;
+}
+.kids[open] summary { margin-bottom: 10px; }
+.kids .note { margin-bottom: 8px; }
+
 .checks { display: flex; flex-wrap: wrap; gap: 8px; }
 .checks label {
   display: inline-flex;

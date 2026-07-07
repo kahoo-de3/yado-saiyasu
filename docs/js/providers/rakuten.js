@@ -10,7 +10,8 @@
  *   search(params, settings)    -> Promise<{items, page, pageCount, total}>
  *
  * params: { checkin, checkout, middle, small, detail, adults, rooms,
- *           minCharge, maxCharge, squeeze[], page }
+ *           kids{upClassNum,lowClassNum,infantWith*Num}, minCharge, maxCharge,
+ *           squeeze[], page }  ※localFilters(露天風呂等)はapp.js側で判定
  * items(正規化形式): { provider, id, name, url, thumb, address, access,
  *                      review, reviewCount, price, planName, roomName }
  * ========================================================= */
@@ -226,6 +227,8 @@
         detailClassCode: params.detail,
         adultNum: params.adults,
         roomNum: params.rooms,
+        // 子供の人数（楽天の年齢6区分。0は送らない）
+        ...(params.kids || {}),
         minCharge: params.minCharge,
         maxCharge: params.maxCharge,
         sort: '+roomCharge',

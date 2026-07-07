@@ -55,6 +55,12 @@
     fillSelect($('selAdults'), Array.from({ length: 10 }, (_, i) => [i + 1, `${i + 1}名`]), '2');
     fillSelect($('selRooms'), Array.from({ length: 10 }, (_, i) => [i + 1, `${i + 1}室`]), '1');
 
+    // 子供の人数（楽天APIの6区分、0〜9名）
+    document.querySelectorAll('.kids-num').forEach((sel) => {
+      fillSelect(sel, Array.from({ length: 10 }, (_, i) => [i, i === 0 ? '0名' : `${i}名`]), '0');
+      sel.addEventListener('change', updateKidsSummary);
+    });
+
     // 予算
     const budgets = [3000, 5000, 8000, 10000, 15000, 20000, 30000, 50000];
     fillSelect($('selMinCharge'), [['', '指定なし'], ...budgets.map((b) => [b, `${yen(b)}〜`])], '');
@@ -77,6 +83,10 @@
     $('inpCheckin').addEventListener('change', onCheckinChange);
     $('searchForm').addEventListener('submit', onSearch);
     $('btnMore').addEventListener('click', onMore);
+    document.querySelector('#squeezeChecks input[value="rotenburo"]')
+      .addEventListener('change', (ev) => {
+        $('rotenNote').style.display = ev.target.checked ? '' : 'none';
+      });
 
     // エリア復元 or 取得
     const cached = loadJson(LS_AREAS);
@@ -93,6 +103,35 @@
     sel.innerHTML = pairs
       .map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(selected) ? ' selected' : ''}>${esc(t)}</option>`)
       .join('');
+  }
+
+  const KID_FIELDS = {
+    upClassNum: 'selKidsUp',
+    lowClassNum: 'selKidsLow',
+    infantWithMBNum: 'selKidsInfMB',
+    infantWithMNum: 'selKidsInfM',
+    infantWithBNum: 'selKidsInfB',
+    infantWithoutMBNum: 'selKidsInfNone',
+  };
+
+  function collectKids() {
+    const kids = {};
+    for (const [param, id] of Object.entries(KID_FIELDS)) {
+      const n = Number($(id).value);
+      if (n > 0) kids[param] = n;
+    }
+    return kids;
+  }
+
+  function kidsTotal(kids) {
+    return Object.values(kids || {}).reduce((s, n) => s + n, 0);
+  }
+
+  function updateKidsSummary() {
+    const total = kidsTotal(collectKids());
+    $('kidsSummary').textContent = total
+      ? `子供の人数（1室あたり）: 合計${total}名`
+      : '子供の人数（1室あたり・任意）';
   }
 
   function onCheckinChange() {
@@ -189,13 +228,21 @@
     }
     if (f.adults) $('selAdults').value = f.adults;
     if (f.rooms) $('selRooms').value = f.rooms;
+    if (f.kids && kidsTotal(f.kids) > 0) {
+      for (const [param, id] of Object.entries(KID_FIELDS)) {
+        if (f.kids[param]) $(id).value = String(f.kids[param]);
+      }
+      $('kidsDetails').open = true;
+      updateKidsSummary();
+    }
   }
 
   /* ---------------- 検索 ---------------- */
   function collectParams() {
-    const squeeze = Array.from(
-      document.querySelectorAll('#squeezeChecks input:checked')
-    ).map((c) => c.value);
+    const checked = Array.from(document.querySelectorAll('#squeezeChecks input:checked'));
+    // data-local付きはAPIに送らずクライアント側でプラン名判定する条件（露天風呂付客室）
+    const squeeze = checked.filter((c) => !c.dataset.local).map((c) => c.value);
+    const localFilters = checked.filter((c) => c.dataset.local).map((c) => c.value);
     return {
       checkin: $('inpCheckin').value,
       checkout: $('inpCheckout').value,
@@ -204,10 +251,18 @@
       detail: $('selDetail').value,
       adults: $('selAdults').value,
       rooms: $('selRooms').value,
+      kids: collectKids(),
       minCharge: $('selMinCharge').value,
       maxCharge: $('selMaxCharge').value,
       squeeze,
+      localFilters,
     };
+  }
+
+  // 露天風呂付客室: APIに絞込条件が無いため、返却プラン名・部屋名で判定
+  function applyLocalFilters(items) {
+    if (!lastParams || !lastParams.localFilters.includes('rotenburo')) return items;
+    return items.filter((i) => /露天/.test(`${i.planName}${i.roomName}`));
   }
 
   async function onSearch(ev) {
@@ -227,7 +282,7 @@
     }
     saveJson(LS_LASTFORM, {
       middle: params.middle, small: params.small, detail: params.detail,
-      adults: params.adults, rooms: params.rooms,
+      adults: params.adults, rooms: params.rooms, kids: params.kids,
     });
 
     lastParams = params;
@@ -240,6 +295,17 @@
 
     try {
       await runProviders(1);
+      // ローカルフィルタ(露天風呂)で件数が減る場合は自動で追加ページを取得
+      let guard = 0;
+      while (
+        lastParams.localFilters.length &&
+        applyLocalFilters(allItems).length < 10 &&
+        hasMorePages() && guard < 4
+      ) {
+        await sleep(1100); // 楽天レート制限 1req/秒
+        await fetchNextPages();
+        guard++;
+      }
       renderResults();
     } catch (e) {
       showError(errorText(e));
@@ -249,15 +315,27 @@
     }
   }
 
+  function hasMorePages() {
+    return Object.values(pagingState).some((s) => s.page < s.pageCount);
+  }
+
+  async function fetchNextPages() {
+    const nexts = Object.entries(pagingState)
+      .filter(([, s]) => s.page < s.pageCount)
+      .map(([id, s]) => ({ id, page: s.page + 1 }));
+    await runProviders(null, nexts);
+  }
+
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
   async function onMore() {
     if (!lastParams) return;
     $('btnMore').disabled = true;
     setLoading(true);
     try {
-      const nexts = Object.entries(pagingState)
-        .filter(([, s]) => s.page < s.pageCount)
-        .map(([id, s]) => ({ id, page: s.page + 1 }));
-      await runProviders(null, nexts);
+      await fetchNextPages();
       renderResults();
     } catch (e) {
       showError(errorText(e));
@@ -291,10 +369,17 @@
   /* ---------------- 描画 ---------------- */
   function renderResults() {
     const total = Object.values(pagingState).reduce((s, p) => s + (p.total || 0), 0);
-    $('resultCount').innerHTML = total
-      ? `<strong>${total.toLocaleString()}</strong> 件（${allItems.length}件表示）`
-      : '該当する空室が見つかりませんでした';
-    $('resultList').innerHTML = allItems.map(cardHtml).join('');
+    const shown = applyLocalFilters(allItems);
+    const filtered = lastParams && lastParams.localFilters.length;
+    if (!total) {
+      $('resultCount').innerHTML = '該当する空室が見つかりませんでした';
+    } else if (filtered && !shown.length) {
+      $('resultCount').innerHTML = `露天風呂付プランは見つかりませんでした（${allItems.length}件を判定済み。「もっと見る」で続きを判定できます）`;
+    } else {
+      $('resultCount').innerHTML = `<strong>${shown.length.toLocaleString()}</strong> 件表示`
+        + (filtered ? `（${allItems.length}件中・露天風呂判定）` : `（全${total.toLocaleString()}件）`);
+    }
+    $('resultList').innerHTML = shown.map(cardHtml).join('');
     const hasMore = Object.values(pagingState).some((s) => s.page < s.pageCount);
     $('btnMore').classList.toggle('hidden', !hasMore);
     $('resultSection').classList.remove('hidden');
@@ -305,8 +390,9 @@
     const nights = lastParams
       ? Math.max(1, Math.round((new Date(lastParams.checkout) - new Date(lastParams.checkin)) / 86400000))
       : 1;
+    const kidsN = lastParams ? kidsTotal(lastParams.kids) : 0;
     const priceNote = lastParams
-      ? `〜 1室合計（大人${esc(lastParams.adults)}名・${nights}泊）`
+      ? `〜 1室合計（大人${esc(lastParams.adults)}名${kidsN ? `・子${kidsN}名` : ''}・${nights}泊）`
       : '〜';
     const review = item.review
       ? `<div class="hotel-card__review">★ ${item.review.toFixed(1)} <span class="cnt">(${item.reviewCount.toLocaleString()}件)</span></div>`

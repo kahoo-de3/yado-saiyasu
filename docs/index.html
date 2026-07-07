@@ -77,6 +77,37 @@
         </label>
       </div>
 
+      <details class="kids" id="kidsDetails">
+        <summary id="kidsSummary">子供の人数（1室あたり・任意）</summary>
+        <p class="note">年齢区分でプラン・料金が変わります。該当する区分に人数を入れてください。</p>
+        <div class="grid2">
+          <label class="field">
+            <span class="field__label">小学生（高学年）</span>
+            <select id="selKidsUp" class="kids-num"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">小学生（低学年）</span>
+            <select id="selKidsLow" class="kids-num"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">幼児（食事・布団あり）</span>
+            <select id="selKidsInfMB" class="kids-num"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">幼児（食事のみ）</span>
+            <select id="selKidsInfM" class="kids-num"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">幼児（布団のみ）</span>
+            <select id="selKidsInfB" class="kids-num"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">幼児（食事・布団なし）</span>
+            <select id="selKidsInfNone" class="kids-num"></select>
+          </label>
+        </div>
+      </details>
+
       <label class="field">
         <span class="field__label">都道府県</span>
         <select id="selMiddle">
@@ -110,11 +141,13 @@
         <div class="checks" id="squeezeChecks">
           <label><input type="checkbox" value="onsen">温泉</label>
           <label><input type="checkbox" value="daiyoku">大浴場</label>
+          <label><input type="checkbox" value="rotenburo" data-local="1">露天風呂付客室</label>
           <label><input type="checkbox" value="breakfast">朝食付</label>
           <label><input type="checkbox" value="dinner">夕食付</label>
           <label><input type="checkbox" value="kinen">禁煙ルーム</label>
           <label><input type="checkbox" value="internet">ネット接続</label>
         </div>
+        <p class="note" id="rotenNote" style="display:none">※露天風呂付客室は各宿の最安プラン名・部屋名での判定のため、該当プランが別にある宿は漏れる場合があります</p>
       </fieldset>
 
       <button type="submit" id="btnSearch" class="btn btn--primary btn--block">最安値を検索</button>
