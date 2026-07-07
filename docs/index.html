@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>宿最安ファインダー | 国内宿泊の最安値検索</title>
+<meta name="description" content="宿泊日・エリア・予算・こだわり条件で国内の宿の最安値を横断検索。楽天トラベル対応。">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header__inner">
+    <h1 class="app-title">宿最安ファインダー</h1>
+    <button id="btnSettings" class="btn-icon" title="APIキー設定" aria-label="APIキー設定">⚙</button>
+  </div>
+  <p class="app-sub">国内宿泊の最安値をまとめて検索</p>
+  <div class="provider-chips" id="providerChips">
+    <span class="chip chip--on" data-provider="rakuten">楽天トラベル</span>
+    <span class="chip chip--soon" title="今後対応予定">ヤフートラベル（予定）</span>
+    <span class="chip chip--soon" title="今後対応予定">じゃらん（予定）</span>
+  </div>
+</header>
+
+<!-- APIキー設定パネル -->
+<section id="settingsPanel" class="panel panel--settings hidden">
+  <h2 class="panel__title">APIキー設定</h2>
+  <p class="note">
+    楽天ウェブサービスの <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">アプリID発行ページ</a>
+    で無料取得したキーを入力してください。キーはこの端末のブラウザ内（localStorage）にのみ保存されます。
+    ※新形式キー（pk_…）は楽天側の許可ドメイン設定により、登録したドメイン（公開サイト）上でのみ動作します。
+  </p>
+  <label class="field">
+    <span class="field__label">楽天 APIキー<em class="req">必須</em></span>
+    <input type="text" id="inpAppId" placeholder="pk_… の新形式キー、または従来の数値アプリID" autocomplete="off">
+  </label>
+  <label class="field">
+    <span class="field__label">楽天 アクセスキー（accessKey）<small>※キーが別々に発行された場合のみ</small></span>
+    <input type="text" id="inpAccessKey" placeholder="通常は未入力でOK" autocomplete="off">
+  </label>
+  <label class="field">
+    <span class="field__label">楽天 アフィリエイトID<small>※任意</small></span>
+    <input type="text" id="inpAffiliateId" placeholder="任意" autocomplete="off">
+  </label>
+  <div class="panel__actions">
+    <button id="btnSaveSettings" class="btn btn--primary">保存してエリア情報を取得</button>
+  </div>
+  <p id="settingsMsg" class="msg"></p>
+</section>
+
+<!-- 検索フォーム -->
+<main class="container">
+  <section class="panel">
+    <form id="searchForm" autocomplete="off">
+      <div class="grid2">
+        <label class="field">
+          <span class="field__label">チェックイン</span>
+          <input type="date" id="inpCheckin" required>
+        </label>
+        <label class="field">
+          <span class="field__label">チェックアウト</span>
+          <input type="date" id="inpCheckout" required>
+        </label>
+      </div>
+
+      <div class="grid2">
+        <label class="field">
+          <span class="field__label">大人（1室あたり）</span>
+          <select id="selAdults"></select>
+        </label>
+        <label class="field">
+          <span class="field__label">部屋数</span>
+          <select id="selRooms"></select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field__label">都道府県</span>
+        <select id="selMiddle">
+          <option value="">（APIキー設定後に選択できます）</option>
+        </select>
+      </label>
+      <div class="grid2">
+        <label class="field">
+          <span class="field__label">エリア</span>
+          <select id="selSmall" disabled><option value="">—</option></select>
+        </label>
+        <label class="field">
+          <span class="field__label">詳細エリア<small>任意</small></span>
+          <select id="selDetail" disabled><option value="">指定なし</option></select>
+        </label>
+      </div>
+
+      <div class="grid2">
+        <label class="field">
+          <span class="field__label">予算 下限（1泊）</span>
+          <select id="selMinCharge"></select>
+        </label>
+        <label class="field">
+          <span class="field__label">予算 上限（1泊）</span>
+          <select id="selMaxCharge"></select>
+        </label>
+      </div>
+
+      <fieldset class="field">
+        <span class="field__label">こだわり条件</span>
+        <div class="checks" id="squeezeChecks">
+          <label><input type="checkbox" value="onsen">温泉</label>
+          <label><input type="checkbox" value="daiyoku">大浴場</label>
+          <label><input type="checkbox" value="breakfast">朝食付</label>
+          <label><input type="checkbox" value="dinner">夕食付</label>
+          <label><input type="checkbox" value="kinen">禁煙ルーム</label>
+          <label><input type="checkbox" value="internet">ネット接続</label>
+        </div>
+      </fieldset>
+
+      <button type="submit" id="btnSearch" class="btn btn--primary btn--block">最安値を検索</button>
+    </form>
+  </section>
+
+  <!-- 結果 -->
+  <section id="resultSection" class="hidden">
+    <div class="result-head">
+      <span id="resultCount"></span>
+      <span class="result-note">安い順</span>
+    </div>
+    <div id="resultList"></div>
+    <button id="btnMore" class="btn btn--ghost btn--block hidden">もっと見る</button>
+  </section>
+
+  <div id="loading" class="loading hidden"><span class="spinner"></span>検索中…</div>
+  <p id="errorMsg" class="msg msg--error hidden"></p>
+
+  <footer class="app-footer">
+    <p>料金は各予約サイトAPIの返却値に基づく参考価格です。プラン条件（1名単価/1室単価・税・入湯税等）は予約サイト側で必ずご確認ください。</p>
+    <p>Powered by <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">Rakuten Web Service</a></p>
+  </footer>
+</main>
+
+<script src="js/providers/rakuten.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
