@@ -39,14 +39,15 @@ docs/
 
 複数プロバイダの結果は価格昇順にマージし、`provider:id` で重複排除。ページングはプロバイダごとに独立管理（`pagingState`）。
 
-## 楽天APIメモ
+## 楽天APIメモ（実測で確認済み）
 
 - 空室検索: `VacantHotelSearch/20170426`（sort=`+roomCharge` で安い順、hits最大30、page最大100）
-- エリアコード: `GetAreaClass`（largeClass=japan → middle=都道府県 → small → detail）。7日間localStorageキャッシュ
+- エリアコード: `GetAreaClass`（largeClass=japan → middle=都道府県47 → small → detail）。7日間localStorageキャッシュ。**新旧エンドポイントでレスポンス構造が異なる**（新=フラットなオブジェクト、旧=ペア配列）→ パーサは両対応
 - squeezeCondition: `kinen` 禁煙 / `internet` / `daiyoku` 大浴場 / `onsen` 温泉 / `breakfast` / `dinner`（カンマ区切りで複数可）
 - 404 = 「該当空室なし」の正常系。429 = レート超過（1リクエスト/秒）
-- エンドポイント2系統: 新形式（accessKeyあり）= `openapi.rakuten.co.jp/engine/api/Travel/`、従来 = `app.rakuten.co.jp/services/api/Travel/`。設定に応じて自動選択+フォールバック
-- fetch（CORS）→ 失敗時JSONP（callbackパラメータ）の順で自動フォールバック
+- **新形式キー（`pk_…`）**: `openapi.rakuten.co.jp/engine/api/Travel/` に `applicationId` と `accessKey` の**両方**として同じ値を渡す。従来の数値アプリIDは `app.rakuten.co.jp/services/api/Travel/`（キー形式で自動判定）
+- **新形式キーはOriginヘッダを許可ドメインと厳格照合**（Referer不可・localhost/127.0.0.1は登録不可＝ローカル開発でAPIは呼べない。公開サイト上でのみ動作）。CORSレスポンスは `access-control-allow-origin: *` なのでfetchでOK。JSONPはOriginが付かないため新キーでは不可（旧キーのみのフォールバック）
+- **料金は `dailyCharge.total`（1室・人数分・日別）の宿泊日合計を採用**。`hotelMinCharge` は検索条件と無関係なホテル全体最安値で、実際に予約可能なプラン料金と一致しない（実測: hotelMinCharge=3,900円 vs 実プラン2名合計9,000円）
 - アフィリエイトID設定時は返却URLが自動的にアフィリエイトリンクになる
 
 ## フェーズ2: ヤフートラベル・じゃらん統合（未着手）
@@ -55,7 +56,8 @@ docs/
 - **ヤフートラベル**: 公開APIなし。選択肢は (a) Yahoo!デベロッパーネットワークの動向確認 (b) バリューコマース等アフィリエイト経由の商品フィード (c) 統合断念して外部リンク（ヤフートラベルの検索結果URLに日付・エリアを引き継ぐディープリンク）
 - 統合時の課題: エリアコード体系の相互マッピング、同一ホテルの名寄せ（名称+緯度経度で突合）、こだわり条件の対応表
 
-## 未検証事項
+## 検証状況
 
-- 実APIキーでの疎通（キー未取得のためUI動作のみ検証済み）
-- `hotelMinCharge` が検索条件での「合計額」か「1名1泊額」か — 実データで要確認（表示は「〜 合計/条件により1名分」と注記済み）
+- 実APIキー（pk_形式）でGetAreaClass / VacantHotelSearchの疎通確認済み（curl + 実レスポンスをフィクスチャにしたブラウザ検証）
+- 箱根2名1泊で213件、プラン合計¥9,000〜が安い順に正しく表示されることを確認
+- ブラウザからの実検索は許可ドメイン（公開サイト）上でのみ可能なため、GitHub Pages公開後に最終確認する
