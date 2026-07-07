@@ -16,9 +16,15 @@
   let settings = loadJson(LS_SETTINGS) || {};
   let areaTree = [];
   let lastParams = null;
-  // プロバイダごとのページング状態 { rakuten: {page, pageCount} }
+  // 選択中の都道府県コード配列 と エリア（`middle#small`）配列
+  let selMids = [];
+  let selAreas = [];
+  // ジョブ(プロバイダ×エリア)ごとのページング状態 key=`${providerId}#${middle}#${small}`
   let pagingState = {};
   let allItems = [];
+
+  const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
+  const areaKey = (mid, small) => `${mid}#${small}`;
 
   /* ---------------- util ---------------- */
   function loadJson(key) {
@@ -78,8 +84,9 @@
     $('btnSettings').addEventListener('click', () => $('settingsPanel').classList.toggle('hidden'));
     $('btnCloseSettings').addEventListener('click', () => $('settingsPanel').classList.add('hidden'));
     $('btnSaveSettings').addEventListener('click', onSaveSettings);
-    $('selMiddle').addEventListener('change', () => populateSmall());
-    $('selSmall').addEventListener('change', () => populateDetail());
+    $('prefList').addEventListener('change', onPrefToggle);
+    $('areaList').addEventListener('change', onAreaToggle);
+    $('areaChips').addEventListener('click', onChipRemove);
     $('inpCheckin').addEventListener('change', onCheckinChange);
     $('searchForm').addEventListener('submit', onSearch);
     $('btnMore').addEventListener('click', onMore);
@@ -181,51 +188,127 @@
     populateMiddle();
   }
 
+  const midName = (mid) => (areaTree.find((m) => m.code === mid) || {}).name || mid;
+  const smallsOf = (mid) => ((areaTree.find((m) => m.code === mid) || {}).children) || [];
+  const smallName = (mid, small) => (smallsOf(mid).find((s) => s.code === small) || {}).name || small;
+
+  // 都道府県一覧を描画（複数選択）
   function populateMiddle() {
-    fillSelect(
-      $('selMiddle'),
-      [['', '都道府県を選択'], ...areaTree.map((m) => [m.code, m.name])],
-      ''
-    );
-    $('selMiddle').disabled = false;
-    populateSmall();
+    if (!areaTree.length) return;
+    $('prefList').innerHTML = areaTree.map((m) => (
+      `<label class="ms-opt"><input type="checkbox" data-mid="${esc(m.code)}"`
+      + `${selMids.includes(m.code) ? ' checked' : ''}>${esc(m.name)}</label>`
+    )).join('');
+    renderAreaList();
+    renderAreaChips();
   }
 
-  function populateSmall() {
-    const m = areaTree.find((x) => x.code === $('selMiddle').value);
-    const smalls = (m && m.children) || [];
-    if (smalls.length) {
-      fillSelect($('selSmall'), smalls.map((s) => [s.code, s.name]), smalls[0].code);
-      $('selSmall').disabled = false;
-    } else {
-      $('selSmall').innerHTML = '<option value="">—</option>';
-      $('selSmall').disabled = true;
+  // 選択中の都道府県ごとに、その配下エリア（＋全域）を描画
+  function renderAreaList() {
+    if (!selMids.length) {
+      $('areaList').innerHTML = '<p class="ms-hint">左で都道府県を選ぶと表示されます</p>';
+      return;
     }
-    populateDetail();
+    $('areaList').innerHTML = selMids.map((mid) => {
+      const smalls = smallsOf(mid);
+      if (!smalls.length) return '';
+      const allOn = smalls.every((s) => selAreas.includes(areaKey(mid, s.code)));
+      const opts = smalls.map((s) => {
+        const k = areaKey(mid, s.code);
+        return `<label class="ms-opt"><input type="checkbox" data-area="${esc(k)}"`
+          + `${selAreas.includes(k) ? ' checked' : ''}>${esc(s.name)}</label>`;
+      }).join('');
+      return `<div class="ms-group"><div class="ms-group__head">${esc(midName(mid))}</div>`
+        + `<label class="ms-opt ms-opt--all"><input type="checkbox" data-all="${esc(mid)}"`
+        + `${allOn ? ' checked' : ''}>${esc(midName(mid))} 全域</label>${opts}</div>`;
+    }).join('') || '<p class="ms-hint">選択した都道府県にエリア情報がありません</p>';
   }
 
-  function populateDetail() {
-    const m = areaTree.find((x) => x.code === $('selMiddle').value);
-    const s = m && (m.children || []).find((x) => x.code === $('selSmall').value);
-    const details = (s && s.children) || [];
-    if (details.length) {
-      fillSelect($('selDetail'), [['', '指定なし'], ...details.map((d) => [d.code, d.name])], '');
-      $('selDetail').disabled = false;
-    } else {
-      $('selDetail').innerHTML = '<option value="">指定なし</option>';
-      $('selDetail').disabled = true;
+  // 選択中エリアをチップ表示（都道府県だけ選んでエリア未選択なら都道府県チップ）
+  function renderAreaChips() {
+    const chips = [];
+    for (const mid of selMids) {
+      const areas = selAreas.filter((k) => k.startsWith(mid + '#'));
+      if (areas.length) {
+        for (const k of areas) {
+          chips.push(`<span class="ms-chip">${esc(midName(mid))}/${esc(smallName(mid, k.split('#')[1]))}`
+            + `<span class="ms-chip__x" data-rm-area="${esc(k)}">×</span></span>`);
+        }
+      } else {
+        chips.push(`<span class="ms-chip">${esc(midName(mid))}<small>（エリア未選択）</small>`
+          + `<span class="ms-chip__x" data-rm-mid="${esc(mid)}">×</span></span>`);
+      }
     }
+    $('areaChips').innerHTML = chips.join('');
+    const n = selAreas.length;
+    $('areaSummary').textContent = n
+      ? `都道府県・エリアを選ぶ（${n}エリア選択中）`
+      : '都道府県・エリアを選ぶ';
+  }
+
+  function onPrefToggle(ev) {
+    const mid = ev.target.dataset.mid;
+    if (!mid) return;
+    if (ev.target.checked) {
+      if (!selMids.includes(mid)) selMids.push(mid);
+    } else {
+      selMids = selMids.filter((x) => x !== mid);
+      selAreas = selAreas.filter((k) => !k.startsWith(mid + '#'));
+    }
+    renderAreaList();
+    renderAreaChips();
+  }
+
+  function onAreaToggle(ev) {
+    const t = ev.target;
+    if (t.dataset.all !== undefined) {
+      const mid = t.dataset.all;
+      const keys = smallsOf(mid).map((s) => areaKey(mid, s.code));
+      selAreas = selAreas.filter((k) => !keys.includes(k));
+      if (t.checked) selAreas.push(...keys);
+    } else if (t.dataset.area !== undefined) {
+      const k = t.dataset.area;
+      if (t.checked) { if (!selAreas.includes(k)) selAreas.push(k); }
+      else selAreas = selAreas.filter((x) => x !== k);
+    } else return;
+    renderAreaList();
+    renderAreaChips();
+  }
+
+  function onChipRemove(ev) {
+    const x = ev.target.closest('.ms-chip__x');
+    if (!x) return;
+    if (x.dataset.rmArea !== undefined) {
+      selAreas = selAreas.filter((k) => k !== x.dataset.rmArea);
+    } else if (x.dataset.rmMid !== undefined) {
+      const mid = x.dataset.rmMid;
+      selMids = selMids.filter((m) => m !== mid);
+      selAreas = selAreas.filter((k) => !k.startsWith(mid + '#'));
+    }
+    populateMiddle(); // チェック状態も戻すため全再描画
+  }
+
+  // 選択状態 → 検索対象エリア配列 [{middle, small}]
+  function deriveTargets() {
+    const targets = [];
+    for (const mid of selMids) {
+      const areas = selAreas.filter((k) => k.startsWith(mid + '#'));
+      for (const k of areas) targets.push({ middle: mid, small: k.split('#')[1] });
+    }
+    return targets;
   }
 
   function restoreLastForm() {
     const f = loadJson(LS_LASTFORM);
     if (!f) return;
-    if (f.middle && areaTree.some((m) => m.code === f.middle)) {
-      $('selMiddle').value = f.middle;
-      populateSmall();
-      if (f.small) { $('selSmall').value = f.small; populateDetail(); }
-      if (f.detail) $('selDetail').value = f.detail;
+    if (Array.isArray(f.mids)) selMids = f.mids.filter((mid) => areaTree.some((m) => m.code === mid));
+    if (Array.isArray(f.areas)) {
+      selAreas = f.areas.filter((k) => {
+        const [mid, small] = k.split('#');
+        return selMids.includes(mid) && smallsOf(mid).some((s) => s.code === small);
+      });
     }
+    populateMiddle();
     if (f.adults) $('selAdults').value = f.adults;
     if (f.rooms) $('selRooms').value = f.rooms;
     if (f.kids && kidsTotal(f.kids) > 0) {
@@ -246,9 +329,7 @@
     return {
       checkin: $('inpCheckin').value,
       checkout: $('inpCheckout').value,
-      middle: $('selMiddle').value,
-      small: $('selSmall').value,
-      detail: $('selDetail').value,
+      targets: deriveTargets(),
       adults: $('selAdults').value,
       rooms: $('selRooms').value,
       kids: collectKids(),
@@ -281,17 +362,32 @@
       return;
     }
     const params = collectParams();
-    if (!params.middle) { showError('都道府県を選択してください'); return; }
+    if (!params.targets.length) {
+      if (selMids.length) {
+        showError('エリアを選択してください（都道府県名の「全域」も選べます）');
+        $('areaPicker').open = true;
+      } else {
+        showError('都道府県・エリアを選択してください');
+        $('areaPicker').open = true;
+      }
+      return;
+    }
     if (!(new Date(params.checkout) > new Date(params.checkin))) {
       showError('チェックアウト日はチェックイン日より後にしてください');
       return;
     }
+    let capped = false;
+    if (params.targets.length > MAX_TARGETS) {
+      params.targets = params.targets.slice(0, MAX_TARGETS);
+      capped = true;
+    }
     saveJson(LS_LASTFORM, {
-      middle: params.middle, small: params.small, detail: params.detail,
+      mids: selMids, areas: selAreas,
       adults: params.adults, rooms: params.rooms, kids: params.kids,
     });
 
     lastParams = params;
+    lastParams.capped = capped;
     pagingState = {};
     allItems = [];
     $('resultSection').classList.add('hidden');
@@ -300,7 +396,8 @@
     $('btnSearch').disabled = true;
 
     try {
-      await runProviders(1);
+      const jobs = initialJobs();
+      await runJobs(jobs);
       // ローカルフィルタ(露天風呂)で件数が減る場合は自動で追加ページを取得
       let guard = 0;
       while (
@@ -308,8 +405,7 @@
         applyLocalFilters(allItems).length < 10 &&
         hasMorePages() && guard < 4
       ) {
-        await sleep(1100); // 楽天レート制限 1req/秒
-        await fetchNextPages();
+        await runJobs(nextPageJobs());
         guard++;
       }
       renderResults();
@@ -325,15 +421,58 @@
     return Object.values(pagingState).some((s) => s.page < s.pageCount);
   }
 
-  async function fetchNextPages() {
-    const nexts = Object.entries(pagingState)
-      .filter(([, s]) => s.page < s.pageCount)
-      .map(([id, s]) => ({ id, page: s.page + 1 }));
-    await runProviders(null, nexts);
-  }
-
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  const configuredProviders = () => PROVIDERS.filter((p) => p.isConfigured(settings));
+
+  // 初回: 全プロバイダ × 全対象エリア を page1 で
+  function initialJobs() {
+    const jobs = [];
+    for (const p of configuredProviders()) {
+      for (const t of lastParams.targets) {
+        jobs.push({ provider: p, target: t, key: `${p.id}#${t.middle}#${t.small}`, page: 1 });
+      }
+    }
+    return jobs;
+  }
+
+  // 追加読み込み: まだページが残るジョブを次ページで
+  function nextPageJobs() {
+    return Object.values(pagingState)
+      .filter((s) => s.page < s.pageCount)
+      .map((s) => ({
+        provider: PROVIDERS.find((p) => p.id === s.providerId),
+        target: s.target,
+        key: `${s.providerId}#${s.target.middle}#${s.target.small}`,
+        page: s.page + 1,
+      }))
+      .filter((j) => j.provider);
+  }
+
+  // ジョブ列を順次実行（楽天レート制限1req/秒のため各API呼び出し間に1.1秒待つ）
+  async function runJobs(jobs) {
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+      if (i > 0) await sleep(1100);
+      if (jobs.length > 1) {
+        setLoading(true, `検索中… ${i + 1}/${jobs.length} エリア`);
+      }
+      const res = await job.provider.search(
+        { ...lastParams, middle: job.target.middle, small: job.target.small, detail: '', page: job.page },
+        settings
+      );
+      pagingState[job.key] = {
+        page: res.page, pageCount: res.pageCount, total: res.total,
+        providerId: job.provider.id, target: job.target,
+      };
+      const seen = new Set(allItems.map((it) => `${it.provider}:${it.id}`));
+      for (const item of res.items) {
+        if (!seen.has(`${item.provider}:${item.id}`)) allItems.push(item);
+      }
+    }
+    allItems.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
   }
 
   async function onMore() {
@@ -341,7 +480,7 @@
     $('btnMore').disabled = true;
     setLoading(true);
     try {
-      await fetchNextPages();
+      await runJobs(nextPageJobs());
       renderResults();
     } catch (e) {
       showError(errorText(e));
@@ -349,27 +488,6 @@
       setLoading(false);
       $('btnMore').disabled = false;
     }
-  }
-
-  // page指定(初回)またはプロバイダ別nextページ指定で全プロバイダ検索
-  async function runProviders(page, nexts) {
-    const targets = PROVIDERS.filter((p) => p.isConfigured(settings));
-    for (const p of targets) {
-      let reqPage = page;
-      if (nexts) {
-        const n = nexts.find((x) => x.id === p.id);
-        if (!n) continue;
-        reqPage = n.page;
-      }
-      const res = await p.search({ ...lastParams, page: reqPage }, settings);
-      pagingState[p.id] = { page: res.page, pageCount: res.pageCount, total: res.total };
-      // 同一ホテルの重複を除外して追加
-      const seen = new Set(allItems.map((i) => `${i.provider}:${i.id}`));
-      for (const item of res.items) {
-        if (!seen.has(`${item.provider}:${item.id}`)) allItems.push(item);
-      }
-    }
-    allItems.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
   }
 
   /* ---------------- 他サイト横断リンク ----------------
@@ -417,13 +535,18 @@
     const total = Object.values(pagingState).reduce((s, p) => s + (p.total || 0), 0);
     const shown = applyLocalFilters(allItems);
     const filtered = lastParams && lastParams.localFilters.length;
+    const nAreas = lastParams ? lastParams.targets.length : 1;
+    const areaNote = nAreas > 1 ? `${nAreas}エリア横断・` : '';
     if (!total) {
       $('resultCount').innerHTML = '該当する空室が見つかりませんでした';
     } else if (filtered && !shown.length) {
       $('resultCount').innerHTML = `露天風呂付プランは見つかりませんでした（${allItems.length}件を判定済み。「もっと見る」で続きを判定できます）`;
     } else {
       $('resultCount').innerHTML = `<strong>${shown.length.toLocaleString()}</strong> 件表示`
-        + (filtered ? `（${allItems.length}件中・露天風呂判定）` : `（全${total.toLocaleString()}件）`);
+        + (filtered ? `（${areaNote}${allItems.length}件中・露天風呂判定）` : `（${areaNote}全${total.toLocaleString()}件）`);
+    }
+    if (lastParams && lastParams.capped) {
+      $('resultCount').innerHTML += `<br><small class="cap-note">※エリアが多いため先頭${MAX_TARGETS}エリアで検索しました</small>`;
     }
     $('resultList').innerHTML = shown.map(cardHtml).join('');
     const hasMore = Object.values(pagingState).some((s) => s.page < s.pageCount);
@@ -470,8 +593,10 @@
   }
 
   /* ---------------- メッセージ ---------------- */
-  function setLoading(on) {
-    $('loading').classList.toggle('hidden', !on);
+  function setLoading(on, msg) {
+    const el = $('loading');
+    el.classList.toggle('hidden', !on);
+    if (on) el.innerHTML = `<span class="spinner"></span>${esc(msg || '検索中…')}`;
   }
   function setMsg(id, text, isError) {
     const el = $(id);

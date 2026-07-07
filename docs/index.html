@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>宿最安ファインダー | 国内宿泊の最安値検索</title>
 <meta name="description" content="宿泊日・エリア・予算・こだわり条件で国内の宿の最安値を横断検索。楽天トラベル対応。">
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 
@@ -103,21 +103,22 @@
         </div>
       </details>
 
-      <label class="field">
-        <span class="field__label">都道府県</span>
-        <select id="selMiddle">
-          <option value="">（APIキー設定後に選択できます）</option>
-        </select>
-      </label>
-      <div class="grid2">
-        <label class="field">
-          <span class="field__label">エリア</span>
-          <select id="selSmall" disabled><option value="">—</option></select>
-        </label>
-        <label class="field">
-          <span class="field__label">詳細エリア<small>任意</small></span>
-          <select id="selDetail" disabled><option value="">指定なし</option></select>
-        </label>
+      <div class="field">
+        <span class="field__label">都道府県・エリア<em class="req">必須</em><small>複数選択できます</small></span>
+        <div id="areaChips" class="ms-chips"></div>
+        <details class="ms" id="areaPicker">
+          <summary id="areaSummary">都道府県・エリアを選ぶ</summary>
+          <div class="ms-body">
+            <div class="ms-col">
+              <div class="ms-col__head">都道府県（複数可）</div>
+              <div class="ms-list" id="prefList"><p class="ms-hint">APIキー設定後に表示されます</p></div>
+            </div>
+            <div class="ms-col">
+              <div class="ms-col__head">エリア（複数可）</div>
+              <div class="ms-list" id="areaList"><p class="ms-hint">左で都道府県を選ぶと表示されます</p></div>
+            </div>
+          </div>
+        </details>
       </div>
 
       <div class="grid2">
@@ -174,7 +175,7 @@
   </footer>
 </main>
 
-<script src="js/providers/rakuten.js?v=8"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/providers/rakuten.js?v=9"></script>
+<script src="js/app.js?v=9"></script>
 </body>
 </html>

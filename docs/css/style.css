@@ -156,6 +156,84 @@ select:disabled { background: #f0f2f6; color: #9aa7b5; }
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+/* ---------- 都道府県・エリア 複数選択 ---------- */
+.ms-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.ms-chips:empty { display: none; }
+.ms-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  background: #e7f0fc;
+  border: 1px solid #bcd4f2;
+  border-radius: 999px;
+  padding: 4px 6px 4px 11px;
+}
+.ms-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(27, 95, 180, .15);
+  cursor: pointer;
+  font-size: .8rem;
+  line-height: 1;
+}
+.ms-chip__x:active { background: rgba(27, 95, 180, .35); }
+
+.ms { border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.ms > summary {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+  padding: 11px 12px;
+  list-style-position: inside;
+}
+.ms[open] > summary { border-bottom: 1px solid var(--line); }
+.ms-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.ms-col { min-width: 0; }
+.ms-col + .ms-col { border-left: 1px solid var(--line); }
+.ms-col__head {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--ink-sub);
+  padding: 8px 10px 6px;
+  position: sticky;
+  top: 0;
+  background: #f7f9fc;
+  border-bottom: 1px solid var(--line);
+}
+.ms-list { max-height: 260px; overflow-y: auto; padding: 4px 0; }
+.ms-hint { font-size: .74rem; color: var(--ink-sub); padding: 10px; }
+.ms-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .84rem;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.ms-opt:active { background: #eef3fb; }
+.ms-opt input { accent-color: var(--primary); width: 16px; height: 16px; flex: none; }
+.ms-opt--all { font-weight: 700; color: var(--primary-dark); background: #f2f7fd; }
+.ms-group__head {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--ink-sub);
+  padding: 8px 10px 2px;
+}
+.ms-group + .ms-group { border-top: 1px solid var(--line); }
+
+@media (max-width: 520px) {
+  .ms-body { grid-template-columns: 1fr; }
+  .ms-col + .ms-col { border-left: none; border-top: 1px solid var(--line); }
+}
+
 .kids {
   border: 1px solid var(--line);
   border-radius: 8px;
