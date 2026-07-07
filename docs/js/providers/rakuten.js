@@ -146,15 +146,24 @@
     return out;
   }
 
-  // 「プランを見る」の遷移先を、施設情報ページではなくプラン一覧ページにし、
-  // 検索した宿泊日・人数・部屋数を引き継ぐ。楽天のリダイレクタ(planListUrl)は
-  // 追記したクエリを最終URL(hotel.travel.rakuten.co.jp/hotelinfo/plan/)まで
-  // 引き継ぐことを実測で確認済み。アフィリエイトIDもplanListUrlに含まれるため維持される。
-  function buildPlanUrl(basic, params) {
-    const base = basic.planListUrl || basic.hotelInformationUrl;
-    if (!base || !params || !params.checkin || !params.checkout) {
-      return base || basic.hotelInformationUrl || '#';
+  // 「プランを見る」の遷移先。
+  // 楽天APIが返すplanListUrl/hotelInformationUrlは img.travel.rakuten.co.jp/image/tr/api/re/…
+  // というアフィリエイト計測用リダイレクタで、広告ブロッカーやログイン状態によっては
+  // 楽天トップ(rakuten.co.jp)へ流されることがある。そこでリダイレクタを経由せず、
+  // hotelNoから正規のプラン一覧URLを直接組み立てる（実測でどのホテルでも着地確認）。
+  // アフィリエイトID設定時のみ、計測を効かせるため従来のリダイレクタ(planListUrl)を使う。
+  const PLAN_PAGE = 'https://hotel.travel.rakuten.co.jp/hotelinfo/plan/';
+
+  function buildPlanUrl(basic, params, settings) {
+    let base;
+    if (settings && settings.affiliateId && basic.planListUrl) {
+      base = basic.planListUrl; // アフィリエイト計測はリダイレクタ経由でのみ効く
+    } else if (basic.hotelNo) {
+      base = `${PLAN_PAGE}?f_no=${encodeURIComponent(basic.hotelNo)}&f_flg=PLAN`;
+    } else {
+      base = basic.planListUrl || basic.hotelInformationUrl || '#';
     }
+    if (base === '#' || !params || !params.checkin || !params.checkout) return base;
     const ci = params.checkin.split('-'); // YYYY-MM-DD
     const co = params.checkout.split('-');
     if (ci.length !== 3 || co.length !== 3) return base;
@@ -171,7 +180,7 @@
   }
 
   /* ---- VacantHotelSearch レスポンス → 正規化アイテム ---- */
-  function parseHotels(data, params) {
+  function parseHotels(data, params, settings) {
     const items = [];
     for (const wrap of data.hotels || []) {
       const parts = wrap.hotel || [];
@@ -211,7 +220,7 @@
         provider: 'rakuten',
         id: String(basic.hotelNo),
         name: basic.hotelName || '',
-        url: buildPlanUrl(basic, params),
+        url: buildPlanUrl(basic, params, settings),
         thumb: basic.hotelThumbnailUrl || basic.hotelImageUrl || '',
         address: `${basic.address1 || ''}${basic.address2 || ''}`,
         access: basic.access || '',
@@ -273,7 +282,7 @@
       }
       const paging = data.pagingInfo || {};
       return {
-        items: parseHotels(data, params),
+        items: parseHotels(data, params, settings),
         page: Number(paging.page) || 1,
         pageCount: Number(paging.pageCount) || 1,
         total: Number(paging.recordCount) || 0,
