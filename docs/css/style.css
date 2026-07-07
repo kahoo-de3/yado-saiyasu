@@ -31,18 +31,32 @@ a { color: var(--primary); }
   padding: 14px 16px 12px;
 }
 .app-header__inner {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   max-width: 640px;
   margin: 0 auto;
+  min-height: 40px;
 }
-.app-title { font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; }
+.app-title {
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-align: center;
+}
+.app-header__inner .btn-icon {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
 .app-sub {
   max-width: 640px;
-  margin: 2px auto 8px;
+  margin: 4px auto 8px;
   font-size: .78rem;
   opacity: .85;
+  text-align: center;
 }
 .btn-icon {
   background: rgba(255, 255, 255, .15);
@@ -62,6 +76,7 @@ a { color: var(--primary); }
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 .chip {
   font-size: .7rem;
