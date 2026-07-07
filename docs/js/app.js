@@ -259,10 +259,12 @@
     };
   }
 
-  // 露天風呂付客室: APIに絞込条件が無いため、返却プラン名・部屋名で判定
+  // 露天風呂付客室: APIに絞込条件が無いため、返却プラン名・部屋名で判定。
+  // 「絶景露天を満喫」のような大浴場の露天に触れただけの文言を拾わないよう、客室系パターンに限定
+  const ROTEN_RE = /露天風呂付|露天付|客室露天|部屋露天|お部屋.{0,4}露天|専用露天|露天風呂の?ある(客室|部屋|離れ)/;
   function applyLocalFilters(items) {
     if (!lastParams || !lastParams.localFilters.includes('rotenburo')) return items;
-    return items.filter((i) => /露天/.test(`${i.planName}${i.roomName}`));
+    return items.filter((i) => ROTEN_RE.test(`${i.planName}${i.roomName}`));
   }
 
   async function onSearch(ev) {
