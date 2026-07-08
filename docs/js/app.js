@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 10; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 11; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -524,9 +524,12 @@
     },
   ];
 
+  // 注意: カードの外部リンクは意図的に target="_blank" を付けない（同一タブで開く）。
+  // 新しいタブで開く遷移は、ユーザー環境のアフィリエイト系拡張に横取りされて
+  // 楽天市場トップ等に差し替えられる事例を実機で確認済み。同一タブ遷移は横取りされない。
   function crossLinksHtml(item) {
     const links = CROSS_SITES.map((s) =>
-      `<a class="btn-cross ${s.cls}" href="${esc(s.build(item))}" target="_blank" rel="noopener nofollow">`
+      `<a class="btn-cross ${s.cls}" href="${esc(s.build(item))}" rel="noopener nofollow">`
       + `${esc(s.label)}<span class="btn-cross__go">で探す ↗</span></a>`
     ).join('');
     return `<div class="hotel-card__cross"><span class="cross-label">他サイト：</span>${links}</div>`;
@@ -588,7 +591,7 @@
             <span class="badge ${provider ? provider.badgeClass : ''}">${provider ? esc(provider.label) : ''}</span>
             <span class="price">${item.price ? yen(item.price) : '—'}<small>${priceNote}</small></span>
           </div>
-          <a class="btn-book" href="${esc(item.url)}" target="_blank" rel="noopener">プランを見る</a>
+          <a class="btn-book" href="${esc(item.url)}" rel="noopener">プランを見る</a>
         </div>
         ${crossLinksHtml(item)}
       </article>`;
