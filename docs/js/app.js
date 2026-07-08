@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 11; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 12; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -50,6 +50,12 @@
   /* ---------------- 初期化 ---------------- */
   function init() {
     $('appVer').textContent = `v${APP_VER}`;
+
+    // 過去に保存された不正なアフィリエイトIDを自動修復（v11以前の事故データ対策）
+    if (settings.affiliateId && !AFF_RE.test(settings.affiliateId)) {
+      settings.affiliateId = '';
+      saveJson(LS_SETTINGS, settings);
+    }
     // 日付デフォルト: 1週間後に1泊
     const today = new Date();
     const ci = new Date(today); ci.setDate(ci.getDate() + 7);
@@ -155,22 +161,38 @@
   }
 
   /* ---------------- 設定・エリア ---------------- */
+  // 楽天アフィリエイトIDは「16進をドットで繋いだ形式」(例: 0ea62065.34400275.0ea62066.204f04c0)。
+  // それ以外の文字列を渡すとAPIが全リンクを無効なhb.afl.rakuten.co.jpラッパーで包み、
+  // クリック時に楽天市場トップへ飛ばされる事故になる（実例:「宿さがし」と入力されていた）→形式検証必須。
+  const AFF_RE = /^[0-9a-z]+(\.[0-9a-z]+)+$/i;
+  function cleanAffiliateId(v) {
+    return AFF_RE.test(v || '') ? v : '';
+  }
+
   async function onSaveSettings() {
+    const affRaw = $('inpAffiliateId').value.trim();
+    const affiliateId = cleanAffiliateId(affRaw);
     settings = {
       rakutenAppId: $('inpAppId').value.trim(),
       rakutenAccessKey: $('inpAccessKey').value.trim(),
-      affiliateId: $('inpAffiliateId').value.trim(),
+      affiliateId,
     };
     saveJson(LS_SETTINGS, settings);
+    if (affRaw && !affiliateId) {
+      $('inpAffiliateId').value = '';
+      setMsg('settingsMsg', `「${affRaw}」は楽天アフィリエイトIDの形式ではないため保存しませんでした（この欄は通常空欄でOKです）`, true);
+    }
     if (!settings.rakutenAppId) {
       setMsg('settingsMsg', 'アプリIDを入力してください', true);
       return;
     }
-    setMsg('settingsMsg', 'エリア情報を取得中…');
+    if (!(affRaw && !affiliateId)) setMsg('settingsMsg', 'エリア情報を取得中…');
     try {
       await loadAreas(true);
-      setMsg('settingsMsg', '✓ 保存しました。エリアを選択して検索できます。');
-      setTimeout(() => $('settingsPanel').classList.add('hidden'), 900);
+      if (!(affRaw && !affiliateId)) {
+        setMsg('settingsMsg', '✓ 保存しました。エリアを選択して検索できます。');
+        setTimeout(() => $('settingsPanel').classList.add('hidden'), 900);
+      }
     } catch (e) {
       setMsg('settingsMsg', `エリア取得に失敗: ${e.message}（アプリIDを確認してください）`, true);
     }
