@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 15; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 16; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -574,26 +574,10 @@
         return url;
       },
     },
-    {
-      // Agodaも宿名+日付+人数のURL形式あり（texttosearch/checkin/checkout/los/adults/children/rooms）
-      id: 'agoda',
-      label: 'Agoda',
-      cls: 'btn-cross--agoda',
-      suffix: 'で見る ↗',
-      build: (item) => {
-        let url = 'https://www.agoda.com/ja-jp/search?texttosearch=' + encodeURIComponent(item.name);
-        if (lastParams) {
-          const nights = Math.max(1, Math.round(
-            (new Date(lastParams.checkout) - new Date(lastParams.checkin)) / 86400000));
-          const k = lastParams.kids || {};
-          const kidsN = (k.upClassNum || 0) + (k.lowClassNum || 0) + (k.infantWithMBNum || 0)
-            + (k.infantWithMNum || 0) + (k.infantWithBNum || 0) + (k.infantWithoutMBNum || 0);
-          url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}&los=${nights}`
-            + `&adults=${lastParams.adults}&children=${kidsN}&rooms=${lastParams.rooms}`;
-        }
-        return url;
-      },
-    },
+    // Agoda単独ボタンは廃止(v16): texttosearch等のパラメータ自体は有効だが、Agodaは
+    // 日本の宿を英語名で掲載していることが多く、楽天の日本語宿名では該当宿を特定
+    // できないケースが多発（実ユーザー報告）。Agoda料金へはGoogleボタン経由が確実
+    // （Googleが宿を特定→Agoda価格が日付入りで並ぶ→Agodaの該当宿へ遷移できる）。
     {
       id: 'jalan',
       label: 'じゃらん',
