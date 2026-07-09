@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 12; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 13; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -533,6 +533,22 @@
 
   const CROSS_SITES = [
     {
+      // Googleホテル比較（Booking/Agoda/じゃらん/公式等の横断最安値）。
+      // 価格APIは商用契約者限定のため取り込みは不可だが、宿名+日付でGoogleの
+      // 比較画面に直接ランディングできる（checkin/checkoutパラメータ有効・実測確認済）
+      id: 'google',
+      label: 'Google',
+      cls: 'btn-cross--google',
+      suffix: 'で最安値比較 ↗',
+      build: (item) => {
+        let url = 'https://www.google.com/travel/search?q=' + encodeURIComponent(item.name) + '&hl=ja';
+        if (lastParams && lastParams.checkin && lastParams.checkout) {
+          url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}`;
+        }
+        return url;
+      },
+    },
+    {
       id: 'jalan',
       label: 'じゃらん',
       cls: 'btn-cross--jalan',
@@ -552,7 +568,7 @@
   function crossLinksHtml(item) {
     const links = CROSS_SITES.map((s) =>
       `<a class="btn-cross ${s.cls}" href="${esc(s.build(item))}" rel="noopener nofollow">`
-      + `${esc(s.label)}<span class="btn-cross__go">で探す ↗</span></a>`
+      + `${esc(s.label)}<span class="btn-cross__go">${esc(s.suffix || 'で探す ↗')}</span></a>`
     ).join('');
     return `<div class="hotel-card__cross"><span class="cross-label">他サイト：</span>${links}</div>`;
   }

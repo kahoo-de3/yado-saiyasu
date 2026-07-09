@@ -413,6 +413,7 @@ select:disabled { background: #f0f2f6; color: #9aa7b5; }
   white-space: nowrap;
 }
 .btn-cross__go { font-weight: 400; font-size: .68rem; opacity: .8; }
+.btn-cross--google { color: #1a73e8; border-color: #bcd4f2; background: #f3f8ff; font-weight: 800; }
 .btn-cross--jalan { color: #e94709; border-color: #f6c3ac; background: #fff6f2; }
 .btn-cross--yahoo { color: #7b0099; border-color: #dcc0e6; background: #faf3fc; }
 .btn-cross:active { filter: brightness(.95); }
@@ -427,6 +428,7 @@ select:disabled { background: #f0f2f6; color: #9aa7b5; }
   padding: 8px 10px;
   margin: 4px 4px 12px;
 }
+.cross-note__google { color: #1a73e8; font-weight: 700; }
 .cross-note__jalan { color: #e94709; font-weight: 700; }
 .cross-note__yahoo { color: #7b0099; font-weight: 700; }
 
