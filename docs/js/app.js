@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 13; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 14; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -544,6 +544,32 @@
         let url = 'https://www.google.com/travel/search?q=' + encodeURIComponent(item.name) + '&hl=ja';
         if (lastParams && lastParams.checkin && lastParams.checkout) {
           url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}`;
+        }
+        return url;
+      },
+    },
+    {
+      // Booking.comは宿名テキスト+日付+人数+子供年齢をURLで受け取れる標準形式があり、
+      // 楽天と同様に検索条件そのままで飛べる（国内OTAはホテル内部IDが必須のため不可）
+      id: 'booking',
+      label: 'Booking.com',
+      cls: 'btn-cross--booking',
+      suffix: 'で見る ↗',
+      build: (item) => {
+        let url = 'https://www.booking.com/searchresults.ja.html?ss=' + encodeURIComponent(item.name);
+        if (lastParams) {
+          url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}`
+            + `&group_adults=${lastParams.adults}&no_rooms=${lastParams.rooms}`;
+          // 子供: 楽天の区分をおおよその年齢に変換（高学年=11歳/低学年=7歳/幼児=3歳）
+          const ages = [];
+          const k = lastParams.kids || {};
+          for (let i = 0; i < (k.upClassNum || 0); i++) ages.push(11);
+          for (let i = 0; i < (k.lowClassNum || 0); i++) ages.push(7);
+          const infants = (k.infantWithMBNum || 0) + (k.infantWithMNum || 0)
+            + (k.infantWithBNum || 0) + (k.infantWithoutMBNum || 0);
+          for (let i = 0; i < infants; i++) ages.push(3);
+          url += `&group_children=${ages.length}`;
+          for (const a of ages) url += `&age=${a}`;
         }
         return url;
       },
