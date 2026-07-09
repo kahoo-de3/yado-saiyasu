@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 16; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 17; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -548,36 +548,12 @@
         return url;
       },
     },
-    {
-      // Booking.comは宿名テキスト+日付+人数+子供年齢をURLで受け取れる標準形式があり、
-      // 楽天と同様に検索条件そのままで飛べる（国内OTAはホテル内部IDが必須のため不可）
-      id: 'booking',
-      label: 'Booking.com',
-      cls: 'btn-cross--booking',
-      suffix: 'で見る ↗',
-      build: (item) => {
-        let url = 'https://www.booking.com/searchresults.ja.html?ss=' + encodeURIComponent(item.name);
-        if (lastParams) {
-          url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}`
-            + `&group_adults=${lastParams.adults}&no_rooms=${lastParams.rooms}`;
-          // 子供: 楽天の区分をおおよその年齢に変換（高学年=11歳/低学年=7歳/幼児=3歳）
-          const ages = [];
-          const k = lastParams.kids || {};
-          for (let i = 0; i < (k.upClassNum || 0); i++) ages.push(11);
-          for (let i = 0; i < (k.lowClassNum || 0); i++) ages.push(7);
-          const infants = (k.infantWithMBNum || 0) + (k.infantWithMNum || 0)
-            + (k.infantWithBNum || 0) + (k.infantWithoutMBNum || 0);
-          for (let i = 0; i < infants; i++) ages.push(3);
-          url += `&group_children=${ages.length}`;
-          for (const a of ages) url += `&age=${a}`;
-        }
-        return url;
-      },
-    },
-    // Agoda単独ボタンは廃止(v16): texttosearch等のパラメータ自体は有効だが、Agodaは
-    // 日本の宿を英語名で掲載していることが多く、楽天の日本語宿名では該当宿を特定
-    // できないケースが多発（実ユーザー報告）。Agoda料金へはGoogleボタン経由が確実
-    // （Googleが宿を特定→Agoda価格が日付入りで並ぶ→Agodaの該当宿へ遷移できる）。
+    // Booking.com単独ボタンは廃止(v17): ss+日付+人数の条件引き継ぎ自体は機能するが、
+    // Booking側に同日程の在庫がないと「空室がありません」に着地する。空室有無は
+    // 事前照会できない(API非公開・CORS/ボット対策)ためグレーアウト判定は不可能で、
+    // ユーザー判断でGoogle一本化に(Googleは空きがあるサイトの価格のみ表示するため空振りしない)。
+    // Agoda単独ボタンも同様に廃止済み(v16): Agodaは日本の宿を英語名掲載が多く、
+    // 日本語宿名では該当宿を特定できないケースが多発。いずれもGoogleボタン経由が正規ルート。
     {
       id: 'jalan',
       label: 'じゃらん',
