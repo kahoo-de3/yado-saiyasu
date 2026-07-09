@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 14; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 15; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -570,6 +570,26 @@
           for (let i = 0; i < infants; i++) ages.push(3);
           url += `&group_children=${ages.length}`;
           for (const a of ages) url += `&age=${a}`;
+        }
+        return url;
+      },
+    },
+    {
+      // Agodaも宿名+日付+人数のURL形式あり（texttosearch/checkin/checkout/los/adults/children/rooms）
+      id: 'agoda',
+      label: 'Agoda',
+      cls: 'btn-cross--agoda',
+      suffix: 'で見る ↗',
+      build: (item) => {
+        let url = 'https://www.agoda.com/ja-jp/search?texttosearch=' + encodeURIComponent(item.name);
+        if (lastParams) {
+          const nights = Math.max(1, Math.round(
+            (new Date(lastParams.checkout) - new Date(lastParams.checkin)) / 86400000));
+          const k = lastParams.kids || {};
+          const kidsN = (k.upClassNum || 0) + (k.lowClassNum || 0) + (k.infantWithMBNum || 0)
+            + (k.infantWithMNum || 0) + (k.infantWithBNum || 0) + (k.infantWithoutMBNum || 0);
+          url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}&los=${nights}`
+            + `&adults=${lastParams.adults}&children=${kidsN}&rooms=${lastParams.rooms}`;
         }
         return url;
       },
