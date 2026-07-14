@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 17; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 18; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -527,9 +527,18 @@
    * 検索結果の先頭に各サイトの該当ホテルページ（jalan.net/yad… , travel.yahoo.co.jp/…）
    * が出ることを確認済み。
    */
-  const yahooSiteSearch = (name, domain) =>
+  // 住所から市区町村を抽出（例: 静岡県伊東市八幡野1759 → 伊東市、神奈川県足柄下郡箱根町強羅 → 足柄下郡箱根町）。
+  // 「ウテナ」のような短い宿名は単独だと化粧品ブランド等と競合してGoogleが宿を特定できないため、
+  // 全ての横断検索クエリに所在地を添えて曖昧さを消す。
+  function cityOf(addr) {
+    const m = /(?:都|道|府|県)(.+?[市区町村])/.exec(addr || '');
+    return m ? m[1] : '';
+  }
+  const nameWithCity = (item) => `${item.name} ${cityOf(item.address)}`.trim();
+
+  const yahooSiteSearch = (item, domain) =>
     'https://search.yahoo.co.jp/search?p=' +
-    encodeURIComponent(`${name} site:${domain}`);
+    encodeURIComponent(`${nameWithCity(item)} site:${domain}`);
 
   const CROSS_SITES = [
     {
@@ -541,7 +550,7 @@
       cls: 'btn-cross--google',
       suffix: 'で最安値比較 ↗',
       build: (item) => {
-        let url = 'https://www.google.com/travel/search?q=' + encodeURIComponent(item.name) + '&hl=ja';
+        let url = 'https://www.google.com/travel/search?q=' + encodeURIComponent(nameWithCity(item)) + '&hl=ja';
         if (lastParams && lastParams.checkin && lastParams.checkout) {
           url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}`;
         }
@@ -558,13 +567,13 @@
       id: 'jalan',
       label: 'じゃらん',
       cls: 'btn-cross--jalan',
-      build: (item) => yahooSiteSearch(item.name, 'jalan.net'),
+      build: (item) => yahooSiteSearch(item, 'jalan.net'),
     },
     {
       id: 'yahoo',
       label: 'Yahoo!トラベル',
       cls: 'btn-cross--yahoo',
-      build: (item) => yahooSiteSearch(item.name, 'travel.yahoo.co.jp'),
+      build: (item) => yahooSiteSearch(item, 'travel.yahoo.co.jp'),
     },
   ];
 
