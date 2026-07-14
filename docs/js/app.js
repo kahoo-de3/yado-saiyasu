@@ -23,7 +23,7 @@
   let pagingState = {};
   let allItems = [];
 
-  const APP_VER = 18; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 19; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
   const areaKey = (mid, small) => `${mid}#${small}`;
 
@@ -514,79 +514,11 @@
     }
   }
 
-  /* ---------------- 他サイト横断リンク ----------------
-   * じゃらん・ヤフーは宿泊料金APIが利用できない（じゃらんWebサービスは2020年に
-   * 新規登録終了、ヤフートラベルは公開APIなし）。料金は各サイトで確認する前提で、
-   * その宿へ1タップで飛べる送客リンクだけを提供する。価格は表示しない（捏造しない）。
-   *
-   * どちらもサイト直の検索URLは使えない:
-   *   - じゃらん(uww2011init)はEUC-JP専用で、ブラウザのencodeURIComponent(UTF-8)だと
-   *     文字化けして0件になる。
-   *   - ヤフーは共有可能な検索URLが無い（p等のパラメータをサーバが301で除去）。
-   * そこで両サイトとも Yahoo!検索の site:ドメイン 指定を使う。UTF-8で正しく動作し、
-   * 検索結果の先頭に各サイトの該当ホテルページ（jalan.net/yad… , travel.yahoo.co.jp/…）
-   * が出ることを確認済み。
-   */
-  // 住所から市区町村を抽出（例: 静岡県伊東市八幡野1759 → 伊東市、神奈川県足柄下郡箱根町強羅 → 足柄下郡箱根町）。
-  // 「ウテナ」のような短い宿名は単独だと化粧品ブランド等と競合してGoogleが宿を特定できないため、
-  // 全ての横断検索クエリに所在地を添えて曖昧さを消す。
-  function cityOf(addr) {
-    const m = /(?:都|道|府|県)(.+?[市区町村])/.exec(addr || '');
-    return m ? m[1] : '';
-  }
-  const nameWithCity = (item) => `${item.name} ${cityOf(item.address)}`.trim();
-
-  const yahooSiteSearch = (item, domain) =>
-    'https://search.yahoo.co.jp/search?p=' +
-    encodeURIComponent(`${nameWithCity(item)} site:${domain}`);
-
-  const CROSS_SITES = [
-    {
-      // Googleホテル比較（Booking/Agoda/じゃらん/公式等の横断最安値）。
-      // 価格APIは商用契約者限定のため取り込みは不可だが、宿名+日付でGoogleの
-      // 比較画面に直接ランディングできる（checkin/checkoutパラメータ有効・実測確認済）
-      id: 'google',
-      label: 'Google',
-      cls: 'btn-cross--google',
-      suffix: 'で最安値比較 ↗',
-      build: (item) => {
-        let url = 'https://www.google.com/travel/search?q=' + encodeURIComponent(nameWithCity(item)) + '&hl=ja';
-        if (lastParams && lastParams.checkin && lastParams.checkout) {
-          url += `&checkin=${lastParams.checkin}&checkout=${lastParams.checkout}`;
-        }
-        return url;
-      },
-    },
-    // Booking.com単独ボタンは廃止(v17): ss+日付+人数の条件引き継ぎ自体は機能するが、
-    // Booking側に同日程の在庫がないと「空室がありません」に着地する。空室有無は
-    // 事前照会できない(API非公開・CORS/ボット対策)ためグレーアウト判定は不可能で、
-    // ユーザー判断でGoogle一本化に(Googleは空きがあるサイトの価格のみ表示するため空振りしない)。
-    // Agoda単独ボタンも同様に廃止済み(v16): Agodaは日本の宿を英語名掲載が多く、
-    // 日本語宿名では該当宿を特定できないケースが多発。いずれもGoogleボタン経由が正規ルート。
-    {
-      id: 'jalan',
-      label: 'じゃらん',
-      cls: 'btn-cross--jalan',
-      build: (item) => yahooSiteSearch(item, 'jalan.net'),
-    },
-    {
-      id: 'yahoo',
-      label: 'Yahoo!トラベル',
-      cls: 'btn-cross--yahoo',
-      build: (item) => yahooSiteSearch(item, 'travel.yahoo.co.jp'),
-    },
-  ];
-
-  // 注意: カードの外部リンクは意図的に target="_blank" を付けない（同一タブで開く）。
-  // 新しいタブで開く遷移は、ユーザー環境のアフィリエイト系拡張に横取りされて
-  // 楽天市場トップ等に差し替えられる事例を実機で確認済み。同一タブ遷移は横取りされない。
-  function crossLinksHtml(item) {
-    const links = CROSS_SITES.map((s) =>
-      `<a class="btn-cross ${s.cls}" href="${esc(s.build(item))}" rel="noopener nofollow">`
-      + `${esc(s.label)}<span class="btn-cross__go">${esc(s.suffix || 'で探す ↗')}</span></a>`
-    ).join('');
-    return `<div class="hotel-card__cross"><span class="cross-label">他サイト：</span>${links}</div>`;
-  }
+  /* 他サイト横断リンク(Google/Booking/Agoda/じゃらん/Yahoo)はv13〜v18で実装・検証したが、
+   * 方針変更(2026-07-09ユーザー指示)により全廃し楽天のみの構成に(v19)。
+   * 経緯・各サイトのディープリンク可否の知見はREADME参照。
+   * 注意: カードの外部リンクは意図的に target="_blank" を付けない（同一タブで開く）。
+   * 新規タブ遷移はユーザー環境の拡張に横取りされ楽天市場トップへ差し替えられた実例あり。 */
 
   /* ---------------- 描画 ---------------- */
   function renderResults() {
@@ -646,7 +578,6 @@
           </div>
           <a class="btn-book" href="${esc(item.url)}" rel="noopener">プランを見る</a>
         </div>
-        ${crossLinksHtml(item)}
       </article>`;
   }
 

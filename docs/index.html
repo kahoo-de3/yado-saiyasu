@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>宿最安ファインダー | 国内宿泊の最安値検索</title>
-<meta name="description" content="宿泊日・エリア・予算・こだわり条件で国内の宿の最安値を横断検索。楽天トラベル対応。">
-<link rel="stylesheet" href="css/style.css?v=18">
+<title>楽天トラベルサポート | 国内宿泊の最安値検索</title>
+<meta name="description" content="宿泊日・エリア・予算・こだわり条件で楽天トラベルの宿を最安値から検索。">
+<link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body>
 
 <header class="app-header">
   <div class="app-header__inner">
-    <h1 class="app-title">宿さがし</h1>
+    <h1 class="app-title">楽天トラベルサポート</h1>
     <button id="btnSettings" class="btn-icon" title="APIキー設定" aria-label="APIキー設定">⚙</button>
   </div>
-  <p class="app-sub">国内宿泊の最安値をまとめて検索</p>
+  <p class="app-sub">楽天トラベルの宿を最安値から検索</p>
 </header>
 
 <!-- APIキー設定パネル -->
@@ -156,14 +156,6 @@
       <span id="resultCount"></span>
       <span class="result-note">安い順</span>
     </div>
-    <p class="cross-note">
-      表示価格・「プランを見る」は楽天トラベルの料金です。各カード下部の
-      <span class="cross-note__google">Google</span> ボタンで、その宿の
-      <strong>全予約サイト横断の最安値比較</strong>（Booking・Agoda・じゃらん・公式など）を
-      検索日付入りで開けます。<strong>空室があるサイトの価格だけが並ぶ</strong>ので、
-      他サイトの料金確認・予約はここからが確実です。<span class="cross-note__jalan">じゃらん</span>・<span class="cross-note__yahoo">Yahoo!トラベル</span>
-      ボタンは各サイトの該当宿ページへの検索リンクです（各社とも料金APIは非公開のため、価格の取り込みは行いません）。
-    </p>
     <div id="resultList"></div>
     <button id="btnMore" class="btn btn--ghost btn--block hidden">もっと見る</button>
   </section>
@@ -172,12 +164,12 @@
   <p id="errorMsg" class="msg msg--error hidden"></p>
 
   <footer class="app-footer">
-    <p>料金は各予約サイトAPIの返却値に基づく参考価格です。プラン条件（1名単価/1室単価・税・入湯税等）は予約サイト側で必ずご確認ください。</p>
+    <p>料金は楽天トラベルAPIの返却値に基づく参考価格です。プラン条件（1名単価/1室単価・税・入湯税等）は予約画面で必ずご確認ください。</p>
     <p>Powered by <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">Rakuten Web Service</a> <span id="appVer"></span></p>
   </footer>
 </main>
 
-<script src="js/providers/rakuten.js?v=18"></script>
-<script src="js/app.js?v=18"></script>
+<script src="js/providers/rakuten.js?v=19"></script>
+<script src="js/app.js?v=19"></script>
 </body>
 </html>
