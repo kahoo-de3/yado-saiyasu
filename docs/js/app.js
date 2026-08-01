@@ -22,9 +22,16 @@
   // ジョブ(プロバイダ×エリア)ごとのページング状態 key=`${providerId}#${middle}#${small}`
   let pagingState = {};
   let allItems = [];
+  let failedJobs = 0;    // 検索1回のうち失敗したエリア数（部分失敗を結果欄に出すため）
+  let succeededJobs = 0;
+  let lastJobError = null;
 
-  const APP_VER = 19; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
-  const MAX_TARGETS = 12; // 1検索で叩くエリア数の上限（レート制限対策）
+  const APP_VER = 20; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  // 1検索で叩くAPIリクエスト数の上限。楽天のレート制限が1req/秒のため
+  // ここを増やすとそのまま待ち時間になる（実測ベースで 1件 ≒ 1.1秒）。
+  // v20から「選択エリア数」ではなく「詳細エリアまで展開した後のリクエスト数」を数える。
+  const MAX_TARGETS = 60;
+  const REQ_INTERVAL_MS = 1100;
   const areaKey = (mid, small) => `${mid}#${small}`;
 
   /* ---------------- util ---------------- */
@@ -312,12 +319,28 @@
     populateMiddle(); // チェック状態も戻すため全再描画
   }
 
-  // 選択状態 → 検索対象エリア配列 [{middle, small}]
+  // 選択状態 → 検索対象エリア配列 [{middle, small, detail}]
+  //
+  // 楽天APIの仕様: 「地区コード一覧において子の区分が存在する場合、必ず子の区分まで指定する必要がある」。
+  // つまり詳細エリア(detailClass)を持つエリアは detailClassCode を省略すると
+  // `specify valid detailClassCode` エラーになる（例: 北海道/札幌。逆に箱根のように
+  // 詳細エリアを持たないエリアは small までで検索できるため、この不具合は長く表面化しなかった）。
+  // → 詳細エリアを持つエリアは配下の全詳細エリアに展開する。宿は必ずいずれかの
+  //    詳細エリアに属するので、全展開すればそのエリア全体を漏れなくカバーできる。
   function deriveTargets() {
     const targets = [];
     for (const mid of selMids) {
       const areas = selAreas.filter((k) => k.startsWith(mid + '#'));
-      for (const k of areas) targets.push({ middle: mid, small: k.split('#')[1] });
+      for (const k of areas) {
+        const small = k.split('#')[1];
+        const node = smallsOf(mid).find((s) => s.code === small);
+        const details = (node && node.children) || [];
+        if (details.length) {
+          for (const d of details) targets.push({ middle: mid, small, detail: d.code });
+        } else {
+          targets.push({ middle: mid, small, detail: '' });
+        }
+      }
     }
     return targets;
   }
@@ -400,8 +423,10 @@
       showError('チェックアウト日はチェックイン日より後にしてください');
       return;
     }
+    // targetsは詳細エリアまで展開済み（＝そのままAPIリクエスト数）。1req/秒なので上限で頭打ちにする。
+    const totalTargets = params.targets.length;
     let capped = false;
-    if (params.targets.length > MAX_TARGETS) {
+    if (totalTargets > MAX_TARGETS) {
       params.targets = params.targets.slice(0, MAX_TARGETS);
       capped = true;
     }
@@ -412,8 +437,12 @@
 
     lastParams = params;
     lastParams.capped = capped;
+    lastParams.totalTargets = totalTargets;
     pagingState = {};
     allItems = [];
+    failedJobs = 0;
+    succeededJobs = 0;
+    lastJobError = null;
     $('resultSection').classList.add('hidden');
     $('resultList').innerHTML = '';
     setLoading(true);
@@ -451,12 +480,15 @@
 
   const configuredProviders = () => PROVIDERS.filter((p) => p.isConfigured(settings));
 
+  // ジョブの一意キー。詳細エリアまで含めないと同一smallの各detailが互いを上書きしてしまう
+  const targetKey = (t) => `${t.middle}#${t.small}#${t.detail || ''}`;
+
   // 初回: 全プロバイダ × 全対象エリア を page1 で
   function initialJobs() {
     const jobs = [];
     for (const p of configuredProviders()) {
       for (const t of lastParams.targets) {
-        jobs.push({ provider: p, target: t, key: `${p.id}#${t.middle}#${t.small}`, page: 1 });
+        jobs.push({ provider: p, target: t, key: `${p.id}#${targetKey(t)}`, page: 1 });
       }
     }
     return jobs;
@@ -469,24 +501,42 @@
       .map((s) => ({
         provider: PROVIDERS.find((p) => p.id === s.providerId),
         target: s.target,
-        key: `${s.providerId}#${s.target.middle}#${s.target.small}`,
+        key: `${s.providerId}#${targetKey(s.target)}`,
         page: s.page + 1,
       }))
       .filter((j) => j.provider);
   }
 
-  // ジョブ列を順次実行（楽天レート制限1req/秒のため各API呼び出し間に1.1秒待つ）
+  // ジョブ列を順次実行（楽天レート制限1req/秒のため各API呼び出し間に待つ）
   async function runJobs(jobs) {
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i];
-      if (i > 0) await sleep(1100);
+      if (i > 0) await sleep(REQ_INTERVAL_MS);
       if (jobs.length > 1) {
-        setLoading(true, `検索中… ${i + 1}/${jobs.length} エリア`);
+        const leftSec = Math.ceil(((jobs.length - i - 1) * REQ_INTERVAL_MS) / 1000);
+        setLoading(true, `検索中… ${i + 1}/${jobs.length} エリア`
+          + (leftSec > 3 ? `（残り約${leftSec}秒）` : ''));
       }
-      const res = await job.provider.search(
-        { ...lastParams, middle: job.target.middle, small: job.target.small, detail: '', page: job.page },
-        settings
-      );
+      let res;
+      try {
+        res = await job.provider.search(
+          {
+            ...lastParams,
+            middle: job.target.middle,
+            small: job.target.small,
+            detail: job.target.detail || '',
+            page: job.page,
+          },
+          settings
+        );
+      } catch (e) {
+        // 1エリアの失敗で検索全体を捨てない。詳細エリアまで展開すると1検索が数十
+        // リクエストになるため、途中の429や一時エラーで全滅させると被害が大きい。
+        // 全ジョブが失敗したときだけ呼び出し元にエラーを投げる（＝設定ミス等の本物の異常）。
+        failedJobs++;
+        lastJobError = e;
+        continue;
+      }
       pagingState[job.key] = {
         page: res.page, pageCount: res.pageCount, total: res.total,
         providerId: job.provider.id, target: job.target,
@@ -495,8 +545,10 @@
       for (const item of res.items) {
         if (!seen.has(`${item.provider}:${item.id}`)) allItems.push(item);
       }
+      succeededJobs++;
     }
     allItems.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+    if (!succeededJobs && lastJobError) throw lastJobError;
   }
 
   async function onMore() {
@@ -535,8 +587,15 @@
       $('resultCount').innerHTML = `<strong>${shown.length.toLocaleString()}</strong> 件表示`
         + (filtered ? `（${areaNote}${allItems.length}件中・露天風呂判定）` : `（${areaNote}全${total.toLocaleString()}件）`);
     }
+    if (failedJobs) {
+      $('resultCount').innerHTML += `<br><small class="cap-note">`
+        + `※${failedJobs}エリアの取得に失敗しました（混雑等の一時的な失敗の可能性があります。`
+        + `再検索すると取得できることがあります）</small>`;
+    }
     if (lastParams && lastParams.capped) {
-      $('resultCount').innerHTML += `<br><small class="cap-note">※エリアが多いため先頭${MAX_TARGETS}エリアで検索しました</small>`;
+      $('resultCount').innerHTML += `<br><small class="cap-note">`
+        + `※選択範囲は詳細エリアまで展開すると${lastParams.totalTargets}エリアあり、`
+        + `先頭${MAX_TARGETS}エリアで検索しました（選択を絞ると全域を検索できます）</small>`;
     }
     $('resultList').innerHTML = shown.map(cardHtml).join('');
     const hasMore = Object.values(pagingState).some((s) => s.page < s.pageCount);
