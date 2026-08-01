@@ -26,7 +26,7 @@
   let succeededJobs = 0;
   let lastJobError = null;
 
-  const APP_VER = 20; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 21; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   // 1検索で叩くAPIリクエスト数の上限。楽天のレート制限が1req/秒のため
   // ここを増やすとそのまま待ち時間になる（実測ベースで 1件 ≒ 1.1秒）。
   // v20から「選択エリア数」ではなく「詳細エリアまで展開した後のリクエスト数」を数える。
@@ -102,6 +102,7 @@
     $('prefList').addEventListener('change', onPrefToggle);
     $('areaList').addEventListener('change', onAreaToggle);
     $('areaChips').addEventListener('click', onChipRemove);
+    $('btnResetAreas').addEventListener('click', onResetAreas);
     $('inpCheckin').addEventListener('change', onCheckinChange);
     $('searchForm').addEventListener('submit', onSearch);
     $('btnMore').addEventListener('click', onMore);
@@ -275,6 +276,15 @@
     $('areaSummary').textContent = n
       ? `都道府県・エリアを選ぶ（${n}エリア選択中）`
       : '都道府県・エリアを選ぶ';
+    // 何も選んでいないときはリセットボタンを出さない
+    $('btnResetAreas').classList.toggle('hidden', !selMids.length);
+  }
+
+  // 都道府県・エリアの選択をすべて解除（チップの×を1つずつ消す手間をなくす）
+  function onResetAreas() {
+    selMids = [];
+    selAreas = [];
+    populateMiddle(); // チェック状態・エリア一覧・チップをまとめて再描画
   }
 
   function onPrefToggle(ev) {

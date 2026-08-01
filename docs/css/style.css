@@ -141,6 +141,22 @@ a { color: var(--primary); }
   margin-left: 6px;
 }
 
+/* ラベル行の右端にボタンを置く用（他のfieldに影響させないため専用クラス） */
+.field__label--row { display: flex; align-items: center; }
+.btn-reset {
+  margin-left: auto;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  background: #eef3fa;
+  border: 1px solid #bcd4f2;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-reset:active { background: #dbe7f7; }
+
 input[type="text"], input[type="date"], select {
   width: 100%;
   font-size: 16px; /* iOSズーム防止 */
