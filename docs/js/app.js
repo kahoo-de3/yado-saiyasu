@@ -26,7 +26,7 @@
   let succeededJobs = 0;
   let lastJobError = null;
 
-  const APP_VER = 21; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 22; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   // 1検索で叩くAPIリクエスト数の上限。楽天のレート制限が1req/秒のため
   // ここを増やすとそのまま待ち時間になる（実測ベースで 1件 ≒ 1.1秒）。
   // v20から「選択エリア数」ではなく「詳細エリアまで展開した後のリクエスト数」を数える。
@@ -355,16 +355,13 @@
     return targets;
   }
 
+  // 前回の検索条件を復元する。ただし**エリアは復元しない**（v22）。
+  // 「宿ありきで行き先を決める」使い方では毎回ちがうエリアを探すため、
+  // 前回のエリアが選択済みで開くと必ず解除の手間が発生する。人数・部屋数・
+  // 子供の構成は毎回同じことが多いので、そちらだけ復元する。
   function restoreLastForm() {
     const f = loadJson(LS_LASTFORM);
     if (!f) return;
-    if (Array.isArray(f.mids)) selMids = f.mids.filter((mid) => areaTree.some((m) => m.code === mid));
-    if (Array.isArray(f.areas)) {
-      selAreas = f.areas.filter((k) => {
-        const [mid, small] = k.split('#');
-        return selMids.includes(mid) && smallsOf(mid).some((s) => s.code === small);
-      });
-    }
     populateMiddle();
     if (f.adults) $('selAdults').value = f.adults;
     if (f.rooms) $('selRooms').value = f.rooms;
@@ -440,8 +437,8 @@
       params.targets = params.targets.slice(0, MAX_TARGETS);
       capped = true;
     }
+    // エリアは意図的に保存しない（次回まっさらな状態で開くため。restoreLastForm参照）
     saveJson(LS_LASTFORM, {
-      mids: selMids, areas: selAreas,
       adults: params.adults, rooms: params.rooms, kids: params.kids,
     });
 
