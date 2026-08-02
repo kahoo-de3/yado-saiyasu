@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>楽天トラベルサポート | 国内宿泊の最安値検索</title>
 <meta name="description" content="宿泊日・エリア・予算・こだわり条件で楽天トラベルの宿を最安値から検索。">
-<link rel="stylesheet" href="css/style.css?v=22">
+<link rel="stylesheet" href="css/style.css?v=23">
 </head>
 <body>
 
@@ -132,6 +132,12 @@
         </label>
       </div>
 
+      <label class="field">
+        <span class="field__label">並び替え</span>
+        <select id="selSort"></select>
+        <p class="note" id="sortNote" style="display:none">※評価・クチコミ順は楽天API側に並び替え機能がないため、取得した結果の中での並び替えになります（「もっと見る」で件数を増やすほど精度が上がります）</p>
+      </label>
+
       <fieldset class="field">
         <span class="field__label">こだわり条件</span>
         <div class="checks" id="squeezeChecks">
@@ -154,7 +160,7 @@
   <section id="resultSection" class="hidden">
     <div class="result-head">
       <span id="resultCount"></span>
-      <span class="result-note">安い順</span>
+      <span class="result-note" id="resultNote">安い順</span>
     </div>
     <div id="resultList"></div>
     <button id="btnMore" class="btn btn--ghost btn--block hidden">もっと見る</button>
@@ -169,7 +175,7 @@
   </footer>
 </main>
 
-<script src="js/providers/rakuten.js?v=22"></script>
-<script src="js/app.js?v=22"></script>
+<script src="js/providers/rakuten.js?v=23"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>

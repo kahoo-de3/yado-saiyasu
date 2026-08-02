@@ -11,7 +11,9 @@
  *
  * params: { checkin, checkout, middle, small, detail, adults, rooms,
  *           kids{upClassNum,lowClassNum,infantWith*Num}, minCharge, maxCharge,
- *           squeeze[], page }  ※localFilters(露天風呂等)はapp.js側で判定
+ *           squeeze[], sortApi, page }  ※localFilters(露天風呂等)はapp.js側で判定
+ *           sortApiは楽天APIのsort値(standard / +roomCharge / -roomCharge)。
+ *           評価順・クチコミ順はAPI非対応のためapp.js側でクライアントソートする
  * items(正規化形式): { provider, id, name, url, thumb, address, access,
  *                      review, reviewCount, price, planName, roomName }
  * ========================================================= */
@@ -264,7 +266,8 @@
         ...(params.kids || {}),
         minCharge: params.minCharge,
         maxCharge: params.maxCharge,
-        sort: '+roomCharge',
+        // app.js側で選択された並び替えに対応するAPI値（未指定なら安い順）
+        sort: params.sortApi || '+roomCharge',
         page: params.page || 1,
         hits: 30,
       };

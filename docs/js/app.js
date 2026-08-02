@@ -26,13 +26,31 @@
   let succeededJobs = 0;
   let lastJobError = null;
 
-  const APP_VER = 22; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
+  const APP_VER = 23; // index.htmlの ?v= と合わせる（フッターに表示＝キャッシュ切り分け用）
   // 1検索で叩くAPIリクエスト数の上限。楽天のレート制限が1req/秒のため
   // ここを増やすとそのまま待ち時間になる（実測ベースで 1件 ≒ 1.1秒）。
   // v20から「選択エリア数」ではなく「詳細エリアまで展開した後のリクエスト数」を数える。
   const MAX_TARGETS = 60;
   const REQ_INTERVAL_MS = 1100;
   const areaKey = (mid, small) => `${mid}#${small}`;
+
+  /* 並び替え。楽天APIのsortは standard / +roomCharge / -roomCharge の3種のみで、
+   * 評価順・クチコミ順は**API非対応**。そのため:
+   *   - 料金順   … APIに並び替えさせる（全件から正しい順で取れる）
+   *   - 評価系   … おすすめ順(standard)で取得し、取得済みの範囲をクライアント側で並び替える
+   * 評価系が「取得済みの中での並び替え」になる点はUIに注記を出す（誤解を招くため）。
+   * cmpは複数エリアのマージ後にも使う（各エリアの結果を混ぜると順序が崩れるため必ず再ソートする）。 */
+  const SORT_OPTIONS = [
+    { value: 'price_asc', label: '安い順', api: '+roomCharge', exact: true,
+      cmp: (a, b) => (a.price || Infinity) - (b.price || Infinity) },
+    { value: 'price_desc', label: '高い順', api: '-roomCharge', exact: true,
+      cmp: (a, b) => (b.price || 0) - (a.price || 0) },
+    { value: 'review_desc', label: '星評価の高い順', api: 'standard', exact: false,
+      cmp: (a, b) => (b.review || 0) - (a.review || 0) || (b.reviewCount || 0) - (a.reviewCount || 0) },
+    { value: 'count_desc', label: 'クチコミの多い順', api: 'standard', exact: false,
+      cmp: (a, b) => (b.reviewCount || 0) - (a.reviewCount || 0) || (b.review || 0) - (a.review || 0) },
+  ];
+  const sortDef = (v) => SORT_OPTIONS.find((s) => s.value === v) || SORT_OPTIONS[0];
 
   /* ---------------- util ---------------- */
   function loadJson(key) {
@@ -86,6 +104,11 @@
     const budgets = [3000, 5000, 8000, 10000, 15000, 20000, 30000, 50000];
     fillSelect($('selMinCharge'), [['', '指定なし'], ...budgets.map((b) => [b, `${yen(b)}〜`])], '');
     fillSelect($('selMaxCharge'), [['', '指定なし'], ...budgets.map((b) => [b, `〜${yen(b)}`])], '');
+
+    // 並び替え
+    fillSelect($('selSort'), SORT_OPTIONS.map((s) => [s.value, s.label]), SORT_OPTIONS[0].value);
+    $('selSort').addEventListener('change', updateSortNote);
+    updateSortNote();
 
     // 設定
     $('inpAppId').value = settings.rakutenAppId || '';
@@ -391,7 +414,13 @@
       maxCharge: $('selMaxCharge').value,
       squeeze,
       localFilters,
+      sort: $('selSort').value,
     };
+  }
+
+  // 評価系ソートはAPI非対応＝取得済みの範囲での並び替えになるため、その旨の注記を出し分ける
+  function updateSortNote() {
+    $('sortNote').style.display = sortDef($('selSort').value).exact ? 'none' : '';
   }
 
   // 露天風呂付客室: APIに絞込条件が無いため、返却プラン名・部屋名で判定。
@@ -532,6 +561,7 @@
             middle: job.target.middle,
             small: job.target.small,
             detail: job.target.detail || '',
+            sortApi: sortDef(lastParams.sort).api,
             page: job.page,
           },
           settings
@@ -554,7 +584,8 @@
       }
       succeededJobs++;
     }
-    allItems.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+    // 複数エリアの結果を混ぜると順序が崩れるため、マージ後に必ず選択中の順で再ソートする
+    allItems.sort(sortDef(lastParams.sort).cmp);
     if (!succeededJobs && lastJobError) throw lastJobError;
   }
 
@@ -581,6 +612,9 @@
 
   /* ---------------- 描画 ---------------- */
   function renderResults() {
+    const sd = lastParams ? sortDef(lastParams.sort) : SORT_OPTIONS[0];
+    // 評価系は取得済みの範囲での並び替えなので、結果欄でもそれが分かる表記にする
+    $('resultNote').textContent = sd.exact ? sd.label : `${sd.label}（取得分）`;
     const total = Object.values(pagingState).reduce((s, p) => s + (p.total || 0), 0);
     const shown = applyLocalFilters(allItems);
     const filtered = lastParams && lastParams.localFilters.length;
